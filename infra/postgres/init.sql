@@ -1,0 +1,4 @@
+CREATE DATABASE auth_db;
+CREATE DATABASE contact_db;
+CREATE DATABASE conversation_db;
+CREATE DATABASE meta_db;

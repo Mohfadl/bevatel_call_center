@@ -1,0 +1,491 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum ChannelType {
+  WHATSAPP
+  FACEBOOK
+  INSTAGRAM
+  SMS
+  EMAIL
+  WEBCHAT
+  PHONE
+}
+
+enum ContactStatus {
+  ACTIVE
+  BLOCKED
+  ARCHIVED
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  CLOSED
+}
+
+enum ConversationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+  INTERNAL
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  AUDIO
+  VIDEO
+  DOCUMENT
+  LOCATION
+  TEMPLATE
+  INTERACTIVE
+  SYSTEM
+  NOTE
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  RECEIVED
+}
+
+enum ConversationEventType {
+  CREATED
+  ASSIGNED
+  UNASSIGNED
+  RESOLVED
+  REOPENED
+  CLOSED
+  MESSAGE_RECEIVED
+  MESSAGE_SENT
+  NOTE_ADDED
+}
+
+enum ChannelAccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+model Organization {
+  id        String   @id @default(uuid()) @db.VarChar(36)
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  contacts        Contact[]
+  identities      ContactIdentity[]
+  channelAccounts ChannelAccount[]
+  conversations   Conversation[]
+  messages        Message[]
+  events          ConversationEvent[]
+
+  teams              Team[]
+  inboxes            Inbox[]
+  labels             Label[]
+  conversationLabels ConversationLabel[]
+  conversationReads  ConversationRead[]
+}
+
+model User {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  name         String
+  email        String
+  passwordHash String
+  role         UserRole   @default(AGENT)
+  status       UserStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  assignedConversations Conversation[]      @relation("AssignedAgent")
+  sentMessages          Message[]
+  conversationEvents    ConversationEvent[]
+
+  teamMembers       TeamMember[]
+  conversationReads ConversationRead[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+}
+
+model Contact {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  displayName String
+  firstName   String?
+  lastName    String?
+  phone       String?
+  email       String?
+  company     String?
+  bio         String? @db.Text
+
+  attributes Json?
+
+  status ContactStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  identities    ContactIdentity[]
+  conversations Conversation[]
+  messages      Message[]
+
+  @@index([organizationId])
+  @@index([organizationId, phone])
+  @@index([organizationId, email])
+}
+
+model ContactIdentity {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+  contactId      String @db.VarChar(36)
+
+  channel    ChannelType
+  externalId String
+
+  username String?
+  phone    String?
+  email    String?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, channel, externalId])
+  @@index([contactId])
+}
+
+model ChannelAccount {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  channel ChannelType
+
+  name              String
+  externalAccountId String?
+
+  phoneNumberId      String?
+  pageId             String?
+  instagramAccountId String?
+
+  accessToken String @db.Text
+
+  status ChannelAccountStatus @default(ACTIVE)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  conversations Conversation[]
+  inboxes       Inbox[]
+
+  @@index([organizationId])
+  @@index([channel])
+}
+
+model Conversation {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  contactId        String  @db.VarChar(36)
+  channelAccountId String? @db.VarChar(36)
+  assignedUserId   String? @db.VarChar(36)
+
+  channel ChannelType
+
+  status   ConversationStatus   @default(OPEN)
+  priority ConversationPriority @default(NORMAL)
+
+  subject String?
+
+  openedAt      DateTime  @default(now())
+  lastMessageAt DateTime?
+  resolvedAt    DateTime?
+  closedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  contact        Contact         @relation(fields: [contactId], references: [id])
+  channelAccount ChannelAccount? @relation(fields: [channelAccountId], references: [id])
+
+  assignedUser User? @relation("AssignedAgent", fields: [assignedUserId], references: [id])
+
+  messages Message[]
+  events   ConversationEvent[]
+
+  inboxId String? @db.VarChar(36)
+
+  inbox Inbox? @relation(fields: [inboxId], references: [id])
+
+  labels ConversationLabel[]
+  reads  ConversationRead[]
+
+  @@index([inboxId])
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([assignedUserId])
+  @@index([organizationId, status])
+  @@index([organizationId, channel])
+  @@index([lastMessageAt])
+}
+
+model Message {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  conversationId String @db.VarChar(36)
+  contactId      String @db.VarChar(36)
+
+  senderUserId String? @db.VarChar(36)
+
+  direction MessageDirection
+  type      MessageType
+
+  body String? @db.Text
+
+  mediaUrl String?
+  mimeType String?
+
+  externalMessageId String?
+  replyToMessageId  String?
+
+  status MessageStatus @default(QUEUED)
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id])
+
+  senderUser User? @relation(fields: [senderUserId], references: [id])
+
+  @@unique([organizationId, externalMessageId])
+  @@index([conversationId, createdAt])
+  @@index([contactId])
+}
+
+model ConversationEvent {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  conversationId String  @db.VarChar(36)
+  actorUserId    String? @db.VarChar(36)
+
+  type ConversationEventType
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  actorUser User? @relation(fields: [actorUserId], references: [id])
+
+  @@index([conversationId, createdAt])
+}
+
+model WebhookReceipt {
+  id String @id @default(uuid()) @db.VarChar(36)
+
+  source String
+
+  externalEventId String?
+
+  payload Json
+
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([source])
+  @@index([externalEventId])
+}
+
+enum TeamMemberRole {
+  MEMBER
+  LEAD
+}
+
+enum InboxStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AgentPresenceStatus {
+  ONLINE
+  AWAY
+  BUSY
+  OFFLINE
+}
+
+model Team {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  name        String
+  description String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  members TeamMember[]
+  inboxes Inbox[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model TeamMember {
+  id String @id @default(uuid()) @db.VarChar(36)
+
+  teamId String @db.VarChar(36)
+  userId String @db.VarChar(36)
+
+  role TeamMemberRole @default(MEMBER)
+
+  createdAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Inbox {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  teamId           String? @db.VarChar(36)
+  channelAccountId String? @db.VarChar(36)
+
+  name String
+
+  status InboxStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  team Team? @relation(fields: [teamId], references: [id])
+
+  channelAccount ChannelAccount? @relation(fields: [channelAccountId], references: [id])
+
+  conversations Conversation[]
+
+  @@index([organizationId])
+  @@index([teamId])
+  @@index([channelAccountId])
+}
+
+model Label {
+  id             String @id @default(uuid()) @db.VarChar(36)
+  organizationId String @db.VarChar(36)
+
+  name  String
+  color String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  conversations ConversationLabel[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model ConversationLabel {
+  id String @id @default(uuid()) @db.VarChar(36)
+
+  organizationId String @db.VarChar(36)
+  conversationId String @db.VarChar(36)
+  labelId        String @db.VarChar(36)
+
+  createdAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, labelId])
+  @@index([organizationId])
+  @@index([labelId])
+}
+
+model ConversationRead {
+  id String @id @default(uuid()) @db.VarChar(36)
+
+  organizationId String @db.VarChar(36)
+  conversationId String @db.VarChar(36)
+  userId         String @db.VarChar(36)
+
+  lastReadMessageId String? @db.VarChar(36)
+
+  readAt DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}

@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Bevatel Inbox
+    </title>
+
+    <link
+        rel="preconnect"
+        href="https://fonts.googleapis.com"
+    >
+
+    <link
+        rel="preconnect"
+        href="https://fonts.gstatic.com"
+        crossorigin
+    >
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="/admin/assets/app.css"
+    >
+</head>
+
+<body>
+
+<!-- ========================================================= -->
+<!-- Login                                                     -->
+<!-- ========================================================= -->
+
+<div
+    id="login-screen"
+    class="login-screen"
+>
+    <div class="login-card">
+
+        <div class="login-brand">
+            <div class="brand-logo">
+                B
+            </div>
+
+            <div>
+                <h1>
+                    Bevatel
+                </h1>
+
+                <p>
+                    Omnichannel Contact Center
+                </p>
+            </div>
+        </div>
+
+        <form
+            id="login-form"
+            class="login-form"
+        >
+
+            <label>
+                Organization ID
+            </label>
+
+            <input
+                id="organization-id"
+                type="text"
+                placeholder="Organization UUID"
+                required
+            >
+
+            <label>
+                Email
+            </label>
+
+            <input
+                id="email"
+                type="email"
+                value="admin@example.com"
+                required
+            >
+
+            <label>
+                Password
+            </label>
+
+            <input
+                id="password"
+                type="password"
+                value="ChangeMe123!"
+                required
+            >
+
+            <button
+                id="login-button"
+                type="submit"
+            >
+                Login
+            </button>
+
+            <div
+                id="login-error"
+                class="login-error"
+            ></div>
+
+        </form>
+
+    </div>
+</div>
+
+
+<!-- ========================================================= -->
+<!-- App                                                       -->
+<!-- ========================================================= -->
+
+<div
+    id="app-screen"
+    class="app-shell hidden"
+>
+
+    <!-- ===================================================== -->
+    <!-- Left Navigation                                       -->
+    <!-- ===================================================== -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+            <div class="sidebar-logo">
+                B
+            </div>
+
+            <div>
+                <strong>
+                    Bevatel
+                </strong>
+
+                <span>
+                    Contact Center
+                </span>
+            </div>
+        </div>
+
+
+        <nav class="sidebar-navigation">
+
+            <button
+                class="sidebar-item active"
+                data-inbox-filter="all"
+            >
+                <span class="sidebar-icon">
+                    ◉
+                </span>
+
+                <span>
+                    All Conversations
+                </span>
+
+                <span
+                    id="all-conversations-count"
+                    class="sidebar-counter"
+                >
+                    0
+                </span>
+            </button>
+
+
+            <button
+                class="sidebar-item"
+                data-inbox-filter="mentions"
+            >
+                <span class="sidebar-icon">
+                    @
+                </span>
+
+                <span>
+                    Mentions
+                </span>
+            </button>
+
+
+            <button
+                class="sidebar-item"
+                data-inbox-filter="unattended"
+            >
+                <span class="sidebar-icon">
+                    ◇
+                </span>
+
+                <span>
+                    Unattended
+                </span>
+            </button>
+
+
+            <button
+                class="sidebar-item"
+                data-inbox-filter="chatbot"
+            >
+                <span class="sidebar-icon">
+                    ▣
+                </span>
+
+                <span>
+                    Chatbot
+                </span>
+            </button>
+
+        </nav>
+
+
+        <!-- Channels -->
+
+        <div class="sidebar-section">
+
+            <div class="sidebar-section-header">
+                <span>
+                    Channels
+                </span>
+
+                <button
+                    id="channels-collapse-button"
+                    class="plain-button"
+                    type="button"
+                >
+                   ⌃
+                </button>
+            </div>
+
+
+            <div
+                id="channels-sidebar-list"
+                class="channels-sidebar-list"
+            >
+                <div class="sidebar-placeholder">
+                    Loading channels...
+                </div>
+            </div>
+
+        </div>
+
+
+        <!-- Labels -->
+
+        <div class="sidebar-section labels-section">
+
+            <div class="sidebar-section-header">
+                <span>
+                    Labels
+                </span>
+
+                <button
+                    id="labels-collapse-button"
+                    class="plain-button"
+                    type="button"
+                >
+                   ⌄
+                </button>
+            </div>
+
+
+            <div
+                id="labels-sidebar-list"
+                class="labels-sidebar-list"
+            ></div>
+
+        </div>
+
+
+        <div class="sidebar-footer">
+
+            <div class="sidebar-user-avatar">
+                A
+            </div>
+
+            <div class="sidebar-user-info">
+                <strong
+                    id="current-user-email"
+                >
+                    Agent
+                </strong>
+
+                <span>
+                    Online
+                </span>
+            </div>
+
+            <button
+                id="logout-button"
+                class="logout-button"
+                title="Logout"
+            >
+                ↪
+            </button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ===================================================== -->
+    <!-- Conversation Inbox                                    -->
+    <!-- ===================================================== -->
+
+    <section class="conversation-panel">
+
+        <!-- Toolbar -->
+
+        <div class="conversation-toolbar">
+
+            <button
+                id="menu-button"
+                class="toolbar-icon-button"
+            >
+                ☰
+            </button>
+
+            <div class="conversation-search">
+
+                <span>
+                    ⌕
+                </span>
+
+                <input
+                    id="conversation-search-input"
+                    type="text"
+                    placeholder="Search messages or contacts..."
+                >
+
+            </div>
+
+            <button
+                id="refresh-button"
+                class="toolbar-icon-button green"
+                title="Refresh"
+            >
+                ↻
+            </button>
+
+        </div>
+
+
+        <!-- Selected Channel -->
+
+        <div class="selected-channel-header">
+
+            <div>
+
+                <div class="selected-channel-title-row">
+
+                    <h2
+                        id="selected-channel-name"
+                    >
+                        All Conversations
+                    </h2>
+
+                    <span
+                        id="selected-channel-type"
+                        class="channel-type-badge"
+                    >
+                        All
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <button
+                id="filter-toggle"
+                class="filter-button"
+            >
+                ▽
+            </button>
+
+        </div>
+
+
+        <!-- Filters -->
+
+        <div
+            id="conversation-filters"
+            class="conversation-filters"
+        >
+
+            <select
+                id="status-filter"
+            >
+                <option value="">
+                    All statuses
+                </option>
+
+                <option value="OPEN">
+                    Open
+                </option>
+
+                <option value="PENDING">
+                    Pending
+                </option>
+
+                <option value="RESOLVED">
+                    Resolved
+                </option>
+
+                <option value="CLOSED">
+                    Closed
+                </option>
+            </select>
+
+
+            <select
+                id="sort-filter"
+            >
+                <option value="activity">
+                    Last activity
+                </option>
+
+                <option value="newest">
+                    Newest
+                </option>
+
+                <option value="oldest">
+                    Oldest
+                </option>
+            </select>
+
+        </div>
+
+
+        <!-- Queue Tabs -->
+
+        <div class="assignment-tabs">
+
+            <button
+                class="assignment-tab"
+                data-assignment-filter="mine"
+            >
+                Mine
+
+                <span
+                    id="mine-count"
+                    class="assignment-count"
+                >
+                    0
+                </span>
+            </button>
+
+
+            <button
+                class="assignment-tab active"
+                data-assignment-filter="unassigned"
+            >
+                Unassigned
+
+                <span
+                    id="unassigned-count"
+                    class="assignment-count blue"
+                >
+                    0
+                </span>
+            </button>
+
+
+            <button
+                class="assignment-tab"
+                data-assignment-filter="all"
+            >
+                All
+
+                <span
+                    id="queue-all-count"
+                    class="assignment-count"
+                >
+                    0
+                </span>
+            </button>
+
+        </div>
+
+
+        <!-- Conversation List -->
+
+        <div
+            id="conversations-list"
+            class="conversations-list"
+        >
+
+            <div class="empty-list">
+                Loading conversations...
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- Active Chat                                           -->
+    <!-- ===================================================== -->
+
+    <main class="chat-panel">
+
+
+        <!-- Empty state -->
+
+        <div
+            id="empty-chat"
+            class="empty-chat"
+        >
+
+            <div class="empty-chat-art">
+
+                <div class="robot-head">
+                    <div class="robot-eye"></div>
+                    <div class="robot-eye"></div>
+                </div>
+
+                <div class="robot-body"></div>
+
+            </div>
+
+            <h3>
+                Select a conversation
+            </h3>
+
+            <p>
+                Choose a conversation from the left pane to start working.
+            </p>
+
+        </div>
+
+
+        <!-- Active conversation -->
+
+        <div
+            id="active-chat"
+            class="active-chat hidden"
+        >
+
+            <!-- Chat header -->
+
+            <header class="chat-header">
+
+                <div class="chat-user-section">
+
+                    <div
+                        id="chat-avatar"
+                        class="chat-avatar"
+                    >
+                        C
+                    </div>
+
+                    <div>
+
+                        <h3
+                            id="chat-contact-name"
+                        >
+                            Contact
+                        </h3>
+
+                        <div class="chat-header-meta">
+
+                            <span
+                                id="chat-channel"
+                                class="chat-channel"
+                            >
+                                WHATSAPP
+                            </span>
+
+                            <span
+                                id="chat-contact-phone"
+                            ></span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <div class="chat-actions">
+
+                    <select
+                        id="conversation-status"
+                        class="header-select"
+                    >
+                        <option value="OPEN">
+                            Open
+                        </option>
+
+                        <option value="PENDING">
+                            Pending
+                        </option>
+
+                        <option value="RESOLVED">
+                            Resolved
+                        </option>
+
+                        <option value="CLOSED">
+                            Closed
+                        </option>
+                    </select>
+
+
+                    <button
+                        id="assign-button"
+                        class="header-action-button"
+                    >
+                        Assign
+                    </button>
+
+
+                    <button
+                        id="contact-info-button"
+                        class="header-icon-button"
+                    >
+                        ⋮
+                    </button>
+
+                </div>
+
+            </header>
+
+
+            <!-- Body -->
+
+            <div class="chat-workspace">
+
+                <div class="chat-main">
+
+                    <div
+                        id="messages-container"
+                        class="messages-container"
+                    ></div>
+
+
+                    <form
+                        id="message-form"
+                        class="message-composer"
+                    >
+
+                        <div class="composer-tools">
+
+                            <button
+                                type="button"
+                                title="Attachment"
+                            >
+                                ＋
+                            </button>
+
+                            <button
+                                type="button"
+                                title="Emoji"
+                            >
+                                ☺
+                            </button>
+
+                        </div>
+
+
+                        <textarea
+                            id="message-input"
+                            rows="1"
+                            placeholder="Write a message..."
+                        ></textarea>
+
+
+                        <button
+                            id="send-message-button"
+                            type="submit"
+                            class="send-button"
+                        >
+                            Send
+                        </button>
+
+                    </form>
+
+                </div>
+
+
+                <!-- Contact panel -->
+
+                <aside
+                    id="contact-details-panel"
+                    class="contact-details-panel hidden"
+                >
+
+                    <div class="contact-details-header">
+
+                        <strong>
+                            Contact Details
+                        </strong>
+
+                        <button
+                            id="close-contact-info"
+                            type="button"
+                        >
+                            ×
+                        </button>
+
+                    </div>
+
+
+                    <div class="contact-profile">
+
+                        <div
+                            id="details-avatar"
+                            class="details-avatar"
+                        >
+                            C
+                        </div>
+
+                        <h3
+                            id="details-name"
+                        >
+                            Customer
+                        </h3>
+
+                        <span
+                            id="details-status"
+                            class="details-status"
+                        >
+                            Active
+                        </span>
+
+                    </div>
+
+
+                    <div class="contact-detail-list">
+
+                        <div class="contact-detail-row">
+                            <span>
+                                Phone
+                            </span>
+
+                            <strong
+                                id="details-phone"
+                            >
+                                -
+                            </strong>
+                        </div>
+
+
+                        <div class="contact-detail-row">
+                            <span>
+                                Email
+                            </span>
+
+                            <strong
+                                id="details-email"
+                            >
+                                -
+                            </strong>
+                        </div>
+
+
+                        <div class="contact-detail-row">
+                            <span>
+                                Company
+                            </span>
+
+                            <strong
+                                id="details-company"
+                            >
+                                -
+                            </strong>
+                        </div>
+
+
+                        <div class="contact-detail-row">
+                            <span>
+                                Channel
+                            </span>
+
+                            <strong
+                                id="details-channel"
+                            >
+                                -
+                            </strong>
+                        </div>
+
+                    </div>
+
+
+                    <div class="details-section">
+
+                        <h4>
+                            Labels
+                        </h4>
+
+                        <div
+                            id="conversation-labels"
+                            class="conversation-labels"
+                        ></div>
+
+                    </div>
+
+                </aside>
+
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<div
+    id="toast-container"
+    class="toast-container"
+></div>
+
+
+<script
+    src="/admin/assets/app.js"
+></script>
+
+</body>
+</html>
