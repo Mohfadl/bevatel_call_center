@@ -40,6 +40,20 @@ HDGV17x2Y8qZxGzapMe0632p
 su - deploy
 cd /var/www/apps/bevatel
 
+git pull origin main
+
+pm2 restart bevatel-api --update-env
+pm2 status
+pm2 logs bevatel-api --lines 100
+
+cd /var/www/apps/bevatel
+git pull origin development
+npm ci
+npx prisma generate
+npx tsc --noEmit
+pm2 restart bevatel-api --update-env
+
+
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u deploy --hp /home/deploy
 
 pm2 restart bevatel-api
