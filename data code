@@ -1,0 +1,93 @@
+CREATE DATABASE bevatel
+CHARACTER SET utf8mb4
+COLLATE utf8mb4_unicode_ci;
+
+CREATE USER 'bevatel'@'localhost'
+IDENTIFIED BY 'bevatel_2026_09_14';
+GRANT ALL PRIVILEGES
+ON bevatel.*
+TO 'bevatel'@'localhost';
+FLUSH PRIVILEGES;
+EXIT;
+
+
+CREATE USER IF NOT EXISTS 'bevatel'@'127.0.0.1'
+IDENTIFIED BY 'bevatel_2026_09_14';
+ALTER USER 'bevatel'@'127.0.0.1'
+IDENTIFIED BY 'bevatel_2026_09_14';
+GRANT ALL PRIVILEGES
+ON bevatel.*
+TO 'bevatel'@'127.0.0.1';
+FLUSH PRIVILEGES;
+
+
+
+CREATE USER IF NOT EXISTS 'bevatel'@'localhost'
+IDENTIFIED BY 'bevatel_2026_09_14';
+ALTER USER 'bevatel'@'localhost'
+IDENTIFIED BY 'bevatel_2026_09_14';
+GRANT ALL PRIVILEGES
+ON bevatel.*
+TO 'bevatel'@'localhost';
+FLUSH PRIVILEGES;
+SELECT user, host
+FROM mysql.user
+WHERE user = 'bevatel';
+EXIT;
+
+
+git clone git@github.com:Mohfadl/bevatel_call_center.git bevatel
+
+
+ssh root@157.173.108.167 
+HDGV17x2Y8qZxGzapMe0632p
+
+su - deploy
+cd /var/www/apps/bevatel
+
+
+
+sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u deploy --hp /home/deploy
+
+pm2 restart bevatel-api
+
+
+
+
+OWNER_ORGANIZATION_NAME="Bevatel" \
+OWNER_ORGANIZATION_SLUG="bevatel" \
+OWNER_NAME="System Owner" \
+OWNER_EMAIL="owner@example.com" \
+OWNER_PASSWORD='PUT_A_STRONG_PASSWORD_HERE' \
+npx tsx scripts/create-owner.ts
+
+
+
+
+
+INSERT INTO User (
+    id,
+    organizationId,
+    name,
+    email,
+    passwordHash,
+    role,
+    status,
+    createdAt,
+    updatedAt
+)
+SELECT
+    UUID(),
+    id,
+    'System Owner',
+    'fadl@example.com',
+    '123456789',
+    'SUPER_ADMIN',
+    'ACTIVE',
+    NOW(3),
+    NOW(3)
+FROM Organization
+WHERE slug = 'bevatel';
+
+
+

@@ -1,8 +1,16 @@
-import { Router } from 'express';
+import {
+  Router,
+  type NextFunction,
+  type Response,
+} from 'express';
+
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
-import { prisma } from '../../../shared/prisma';
+import {
+  prisma,
+} from '../../../shared/prisma';
+
 import {
   authMiddleware,
   allowRoles,
@@ -10,7 +18,8 @@ import {
   type AuthRequest,
 } from '../../../shared/auth';
 
-const router = Router();
+const router =
+  Router();
 
 /*
 |--------------------------------------------------------------------------
@@ -18,48 +27,94 @@ const router = Router();
 |--------------------------------------------------------------------------
 */
 
-const loginSchema = z.object({
-  organizationId: z
-    .string()
-    .min(1, 'Organization ID is required'),
+const loginSchema =
+  z.object({
+    organizationId:
+      z
+        .string()
+        .trim()
+        .min(
+          1,
+          'Organization ID is required',
+        ),
 
-  email: z
-    .string()
-    .email('Invalid email address'),
+    email:
+      z
+        .string()
+        .trim()
+        .email(
+          'Invalid email address',
+        )
+        .transform(
+          (
+            value,
+          ) =>
+            value.toLowerCase(),
+        ),
 
-  password: z
-    .string()
-    .min(1, 'Password is required'),
-});
+    password:
+      z
+        .string()
+        .min(
+          1,
+          'Password is required',
+        ),
+  });
 
-const createUserSchema = z.object({
-  name: z
-    .string()
-    .min(2)
-    .max(100),
+const createUserSchema =
+  z.object({
+    name:
+      z
+        .string()
+        .trim()
+        .min(
+          2,
+          'Name must contain at least 2 characters',
+        )
+        .max(
+          100,
+          'Name cannot exceed 100 characters',
+        ),
 
-  email: z
-    .string()
-    .email(),
+    email:
+      z
+        .string()
+        .trim()
+        .email(
+          'Invalid email address',
+        )
+        .transform(
+          (
+            value,
+          ) =>
+            value.toLowerCase(),
+        ),
 
-  password: z
-    .string()
-    .min(8),
+    password:
+      z
+        .string()
+        .min(
+          8,
+          'Password must contain at least 8 characters',
+        ),
 
-  role: z.enum([
-    'SUPER_ADMIN',
-    'ADMIN',
-    'SUPERVISOR',
-    'AGENT',
-  ]),
-});
+    role:
+      z.enum([
+        'SUPER_ADMIN',
+        'ADMIN',
+        'SUPERVISOR',
+        'AGENT',
+      ]),
+  });
 
-const updateUserStatusSchema = z.object({
-  status: z.enum([
-    'ACTIVE',
-    'INACTIVE',
-  ]),
-});
+const updateUserStatusSchema =
+  z.object({
+    status:
+      z.enum([
+        'ACTIVE',
+        'SUSPENDED',
+      ]),
+  });
 
 /*
 |--------------------------------------------------------------------------
@@ -72,11 +127,20 @@ const updateUserStatusSchema = z.object({
 
 router.get(
   '/health',
-  (_request, response) => {
-    return response.json({
-      success: true,
-      service: 'identity',
-    });
+
+  (
+    _request,
+    response,
+  ) => {
+    return response
+      .status(200)
+      .json({
+        success:
+          true,
+
+        service:
+          'identity',
+      });
   },
 );
 
@@ -95,6 +159,8 @@ router.post(
   async (
     request,
     response,
+    next:
+      NextFunction,
   ) => {
     try {
       /*
@@ -108,13 +174,20 @@ router.post(
           request.body,
         );
 
-      if (!parsed.success) {
+      if (
+        !parsed.success
+      ) {
         return response
           .status(422)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Validation failed',
+              'The submitted login data is invalid.',
+
+            code:
+              'VALIDATION_ERROR',
 
             errors:
               parsed.error.flatten(),
@@ -125,7 +198,8 @@ router.post(
         organizationId,
         email,
         password,
-      } = parsed.data;
+      } =
+        parsed.data;
 
       /*
       |--------------------------------------------------------------------------
@@ -136,17 +210,25 @@ router.post(
       const organization =
         await prisma.organization.findUnique({
           where: {
-            id: organizationId,
+            id:
+              organizationId,
           },
         });
 
-      if (!organization) {
+      if (
+        !organization
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Invalid credentials',
+              'The organization ID, email, or password is incorrect.',
+
+            code:
+              'INVALID_CREDENTIALS',
           });
       }
 
@@ -166,19 +248,26 @@ router.post(
           },
         });
 
-      if (!user) {
+      if (
+        !user
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Invalid credentials',
+              'The organization ID, email, or password is incorrect.',
+
+            code:
+              'INVALID_CREDENTIALS',
           });
       }
 
       /*
       |--------------------------------------------------------------------------
-      | Check status
+      | Check account status
       |--------------------------------------------------------------------------
       */
 
@@ -189,9 +278,14 @@ router.post(
         return response
           .status(403)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'User account is inactive',
+              'Your account is suspended. Please contact an administrator.',
+
+            code:
+              'USER_SUSPENDED',
           });
       }
 
@@ -207,13 +301,20 @@ router.post(
           user.passwordHash,
         );
 
-      if (!passwordIsValid) {
+      if (
+        !passwordIsValid
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Invalid credentials',
+              'The organization ID, email, or password is incorrect.',
+
+            code:
+              'INVALID_CREDENTIALS',
           });
       }
 
@@ -225,10 +326,17 @@ router.post(
 
       const accessToken =
         signToken({
-          id: user.id,
-          organizationId: user.organizationId,
-          email: user.email,
-          role: user.role,
+          id:
+            user.id,
+
+          organizationId:
+            user.organizationId,
+
+          email:
+            user.email,
+
+          role:
+            user.role,
         });
 
       /*
@@ -237,60 +345,64 @@ router.post(
       |--------------------------------------------------------------------------
       */
 
-      return response.json({
-        success: true,
-        message: 'Login successful',
+      return response
+        .status(200)
+        .json({
+          success:
+            true,
 
-        data: {
-          accessToken,
-          tokenType:
-            'Bearer',
+          message:
+            'Login successful.',
 
-          user: {
-            id:
-              user.id,
+          data: {
+            accessToken,
 
-            organizationId:
-              user.organizationId,
+            tokenType:
+              'Bearer',
 
-            name:
-              user.name,
+            user: {
+              id:
+                user.id,
 
-            email:
-              user.email,
+              organizationId:
+                user.organizationId,
 
-            role:
-              user.role,
+              name:
+                user.name,
 
-            status:
-              user.status,
+              email:
+                user.email,
+
+              role:
+                user.role,
+
+              status:
+                user.status,
+            },
+
+            organization: {
+              id:
+                organization.id,
+
+              name:
+                organization.name,
+
+              slug:
+                organization.slug,
+            },
           },
-
-          organization: {
-            id:
-              organization.id,
-
-            name:
-              organization.name,
-
-            slug:
-              organization.slug,
-          },
-        },
-      });
-    } catch (error) {
+        });
+    } catch (
+      error
+    ) {
       console.error(
         'Login error:',
         error,
       );
 
-      return response
-        .status(500)
-        .json({
-          success: false,
-          message:
-            'Internal server error',
-        });
+      return next(
+        error,
+      );
     }
   },
 );
@@ -310,17 +422,30 @@ router.get(
   authMiddleware,
 
   async (
-    request: AuthRequest,
-    response,
+    request:
+      AuthRequest,
+
+    response:
+      Response,
+
+    next:
+      NextFunction,
   ) => {
     try {
-      if (!request.user) {
+      if (
+        !request.user
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Unauthorized',
+              'Authentication is required.',
+
+            code:
+              'UNAUTHORIZED',
           });
       }
 
@@ -335,53 +460,100 @@ router.get(
           },
 
           select: {
-            id: true,
+            id:
+              true,
+
             organizationId:
               true,
-            name: true,
-            email: true,
-            role: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
+
+            name:
+              true,
+
+            email:
+              true,
+
+            role:
+              true,
+
+            status:
+              true,
+
+            createdAt:
+              true,
+
+            updatedAt:
+              true,
 
             organization: {
               select: {
-                id: true,
-                name: true,
-                slug: true,
+                id:
+                  true,
+
+                name:
+                  true,
+
+                slug:
+                  true,
               },
             },
           },
         });
 
-      if (!user) {
+      if (
+        !user
+      ) {
         return response
           .status(404)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'User not found',
+              'The authenticated user could not be found.',
+
+            code:
+              'USER_NOT_FOUND',
           });
       }
 
-      return response.json({
-        success: true,
-        data: user,
-      });
-    } catch (error) {
+      if (
+        user.status !==
+        'ACTIVE'
+      ) {
+        return response
+          .status(403)
+          .json({
+            success:
+              false,
+
+            message:
+              'Your account is suspended.',
+
+            code:
+              'USER_SUSPENDED',
+          });
+      }
+
+      return response
+        .status(200)
+        .json({
+          success:
+            true,
+
+          data:
+            user,
+        });
+    } catch (
+      error
+    ) {
       console.error(
         'Get current user error:',
         error,
       );
 
-      return response
-        .status(500)
-        .json({
-          success: false,
-          message:
-            'Internal server error',
-        });
+      return next(
+        error,
+      );
     }
   },
 );
@@ -407,17 +579,30 @@ router.get(
   ),
 
   async (
-    request: AuthRequest,
-    response,
+    request:
+      AuthRequest,
+
+    response:
+      Response,
+
+    next:
+      NextFunction,
   ) => {
     try {
-      if (!request.user) {
+      if (
+        !request.user
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Unauthorized',
+              'Authentication is required.',
+
+            code:
+              'UNAUTHORIZED',
           });
       }
 
@@ -429,15 +614,29 @@ router.get(
           },
 
           select: {
-            id: true,
+            id:
+              true,
+
             organizationId:
               true,
-            name: true,
-            email: true,
-            role: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
+
+            name:
+              true,
+
+            email:
+              true,
+
+            role:
+              true,
+
+            status:
+              true,
+
+            createdAt:
+              true,
+
+            updatedAt:
+              true,
           },
 
           orderBy: {
@@ -446,23 +645,26 @@ router.get(
           },
         });
 
-      return response.json({
-        success: true,
-        data: users,
-      });
-    } catch (error) {
+      return response
+        .status(200)
+        .json({
+          success:
+            true,
+
+          data:
+            users,
+        });
+    } catch (
+      error
+    ) {
       console.error(
         'List users error:',
         error,
       );
 
-      return response
-        .status(500)
-        .json({
-          success: false,
-          message:
-            'Internal server error',
-        });
+      return next(
+        error,
+      );
     }
   },
 );
@@ -487,32 +689,58 @@ router.post(
   ),
 
   async (
-    request: AuthRequest,
-    response,
+    request:
+      AuthRequest,
+
+    response:
+      Response,
+
+    next:
+      NextFunction,
   ) => {
     try {
-      if (!request.user) {
+      if (
+        !request.user
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Unauthorized',
+              'Authentication is required.',
+
+            code:
+              'UNAUTHORIZED',
           });
       }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Validate
+      |--------------------------------------------------------------------------
+      */
 
       const parsed =
         createUserSchema.safeParse(
           request.body,
         );
 
-      if (!parsed.success) {
+      if (
+        !parsed.success
+      ) {
         return response
           .status(422)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Validation failed',
+              'The submitted user data is invalid.',
+
+            code:
+              'VALIDATION_ERROR',
 
             errors:
               parsed.error.flatten(),
@@ -524,7 +752,34 @@ router.post(
         email,
         password,
         role,
-      } = parsed.data;
+      } =
+        parsed.data;
+
+      /*
+      |--------------------------------------------------------------------------
+      | Prevent normal ADMIN from creating SUPER_ADMIN
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        role ===
+          'SUPER_ADMIN' &&
+        request.user.role !==
+          'SUPER_ADMIN'
+      ) {
+        return response
+          .status(403)
+          .json({
+            success:
+              false,
+
+            message:
+              'Only a Super Admin can create another Super Admin.',
+
+            code:
+              'FORBIDDEN',
+          });
+      }
 
       /*
       |--------------------------------------------------------------------------
@@ -542,19 +797,26 @@ router.post(
           },
         });
 
-      if (existingUser) {
+      if (
+        existingUser
+      ) {
         return response
           .status(409)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Email already exists',
+              'A user with this email address already exists in this organization.',
+
+            code:
+              'EMAIL_ALREADY_EXISTS',
           });
       }
 
       /*
       |--------------------------------------------------------------------------
-      | Password
+      | Hash password
       |--------------------------------------------------------------------------
       */
 
@@ -566,7 +828,7 @@ router.post(
 
       /*
       |--------------------------------------------------------------------------
-      | Create
+      | Create user
       |--------------------------------------------------------------------------
       */
 
@@ -589,41 +851,55 @@ router.post(
           },
 
           select: {
-            id: true,
+            id:
+              true,
+
             organizationId:
               true,
-            name: true,
-            email: true,
-            role: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
+
+            name:
+              true,
+
+            email:
+              true,
+
+            role:
+              true,
+
+            status:
+              true,
+
+            createdAt:
+              true,
+
+            updatedAt:
+              true,
           },
         });
 
       return response
         .status(201)
         .json({
-          success: true,
+          success:
+            true,
 
           message:
-            'User created successfully',
+            'User created successfully.',
 
-          data: user,
+          data:
+            user,
         });
-    } catch (error) {
+    } catch (
+      error
+    ) {
       console.error(
         'Create user error:',
         error,
       );
 
-      return response
-        .status(500)
-        .json({
-          success: false,
-          message:
-            'Internal server error',
-        });
+      return next(
+        error,
+      );
     }
   },
 );
@@ -648,37 +924,69 @@ router.patch(
   ),
 
   async (
-    request: AuthRequest,
-    response,
+    request:
+      AuthRequest,
+
+    response:
+      Response,
+
+    next:
+      NextFunction,
   ) => {
     try {
-      if (!request.user) {
+      if (
+        !request.user
+      ) {
         return response
           .status(401)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Unauthorized',
+              'Authentication is required.',
+
+            code:
+              'UNAUTHORIZED',
           });
       }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Validate
+      |--------------------------------------------------------------------------
+      */
 
       const parsed =
         updateUserStatusSchema.safeParse(
           request.body,
         );
 
-      if (!parsed.success) {
+      if (
+        !parsed.success
+      ) {
         return response
           .status(422)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'Validation failed',
+              'The submitted user status is invalid.',
+
+            code:
+              'VALIDATION_ERROR',
 
             errors:
               parsed.error.flatten(),
           });
       }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Find target user
+      |--------------------------------------------------------------------------
+      */
 
       const user =
         await prisma.user.findFirst({
@@ -691,15 +999,80 @@ router.patch(
           },
         });
 
-      if (!user) {
+      if (
+        !user
+      ) {
         return response
           .status(404)
           .json({
-            success: false,
+            success:
+              false,
+
             message:
-              'User not found',
+              'The requested user was not found.',
+
+            code:
+              'USER_NOT_FOUND',
           });
       }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Prevent ADMIN changing SUPER_ADMIN
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        user.role ===
+          'SUPER_ADMIN' &&
+        request.user.role !==
+          'SUPER_ADMIN'
+      ) {
+        return response
+          .status(403)
+          .json({
+            success:
+              false,
+
+            message:
+              'Only a Super Admin can change the status of another Super Admin.',
+
+            code:
+              'FORBIDDEN',
+          });
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Prevent user suspending himself
+      |--------------------------------------------------------------------------
+      */
+
+      if (
+        user.id ===
+          request.user.id &&
+        parsed.data.status ===
+          'SUSPENDED'
+      ) {
+        return response
+          .status(422)
+          .json({
+            success:
+              false,
+
+            message:
+              'You cannot suspend your own account.',
+
+            code:
+              'CANNOT_SUSPEND_SELF',
+          });
+      }
+
+      /*
+      |--------------------------------------------------------------------------
+      | Update
+      |--------------------------------------------------------------------------
+      */
 
       const updatedUser =
         await prisma.user.update({
@@ -714,39 +1087,55 @@ router.patch(
           },
 
           select: {
-            id: true,
+            id:
+              true,
+
             organizationId:
               true,
-            name: true,
-            email: true,
-            role: true,
-            status: true,
-            updatedAt: true,
+
+            name:
+              true,
+
+            email:
+              true,
+
+            role:
+              true,
+
+            status:
+              true,
+
+            updatedAt:
+              true,
           },
         });
 
-      return response.json({
-        success: true,
+      return response
+        .status(200)
+        .json({
+          success:
+            true,
 
-        message:
-          'User status updated successfully',
+          message:
+            parsed.data.status ===
+            'ACTIVE'
+              ? 'User activated successfully.'
+              : 'User suspended successfully.',
 
-        data:
-          updatedUser,
-      });
-    } catch (error) {
+          data:
+            updatedUser,
+        });
+    } catch (
+      error
+    ) {
       console.error(
         'Update user status error:',
         error,
       );
 
-      return response
-        .status(500)
-        .json({
-          success: false,
-          message:
-            'Internal server error',
-        });
+      return next(
+        error,
+      );
     }
   },
 );
