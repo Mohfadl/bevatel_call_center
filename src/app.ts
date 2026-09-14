@@ -17,11 +17,16 @@ import {
   Prisma,
 } from '../generated/prisma/client';
 
+import registerOrganizationRouter from './services/identity/register-organization.routes';
 import authRouter from './services/identity/auth.routes';
 import contactsRouter from './services/contacts/contacts.routes';
 import conversationsRouter from './services/conversations/conversations.routes';
 import inboxesRouter from './services/conversations/inboxes.routes';
 import labelsRouter from './services/conversations/labels.routes';
+
+import registerRouter from './services/identity/register.routes';
+import adminUsersRouter from './services/identity/admin-users.routes';
+import unreadRouter from './services/conversations/unread.routes';
 
 import metaRouter from './services/meta/meta.routes';
 import metaWebhookRouter from './services/meta/webhook.routes';
@@ -278,6 +283,27 @@ app.use(
 app.use(
   '/api/whatsapp',
   whatsappStartConversationRouter,
+);
+
+
+app.use(
+  '/api/auth',
+  registerRouter,
+);
+
+app.use(
+  '/api/admin/users',
+  adminUsersRouter,
+);
+
+app.use(
+  '/api/conversations/unread',
+  unreadRouter,
+);
+
+app.use(
+  '/api/auth',
+  registerOrganizationRouter,
 );
 
 /*
