@@ -26,13 +26,10 @@ import labelsRouter from './services/conversations/labels.routes';
 import metaRouter from './services/meta/meta.routes';
 import metaWebhookRouter from './services/meta/webhook.routes';
 
-const app = express();
+import whatsappStartConversationRouter from './services/meta/whatsapp-start-conversation.routes';
 
-/*
-|--------------------------------------------------------------------------
-| ESM directory helpers
-|--------------------------------------------------------------------------
-*/
+const app =
+  express();
 
 const __filename =
   fileURLToPath(
@@ -44,23 +41,12 @@ const __dirname =
     __filename,
   );
 
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
-
 type ApiErrorResponse = {
   success: false;
-
   message: string;
-
   code?: string;
-
   errors?: unknown;
-
   details?: unknown;
-
   stack?: string;
 };
 
@@ -68,7 +54,9 @@ function getPrismaReadableMessage(
   error:
     Prisma.PrismaClientKnownRequestError,
 ): string {
-  switch (error.code) {
+  switch (
+    error.code
+  ) {
     case 'P2000':
       return 'One of the provided values is too long.';
 
@@ -85,7 +73,7 @@ function getPrismaReadableMessage(
             )
           : String(
               error.meta?.target ??
-                'field',
+              'field',
             );
 
       return `A record already exists with the same value for: ${target}.`;
@@ -120,12 +108,6 @@ function getPrismaReadableMessage(
   }
 }
 
-/*
-|--------------------------------------------------------------------------
-| Global middleware
-|--------------------------------------------------------------------------
-*/
-
 app.use(
   cors(),
 );
@@ -141,20 +123,15 @@ app.use(
 );
 
 app.use(
-  morgan('dev'),
+  morgan(
+    'dev',
+  ),
 );
 
 /*
 |--------------------------------------------------------------------------
-| Meta Webhook
+| Meta webhook must be before express.json()
 |--------------------------------------------------------------------------
-|
-| IMPORTANT:
-| This MUST stay before express.json().
-|
-| Meta webhook signature validation requires
-| access to the original raw HTTP body.
-|
 */
 
 app.use(
@@ -164,7 +141,7 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| Body parsers
+| Parsers
 |--------------------------------------------------------------------------
 */
 
@@ -187,7 +164,7 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| Static Admin UI
+| Admin UI
 |--------------------------------------------------------------------------
 */
 
@@ -250,7 +227,7 @@ app.get(
         port:
           Number(
             process.env.PORT ??
-              4000,
+            4000,
           ),
       });
   },
@@ -258,7 +235,7 @@ app.get(
 
 /*
 |--------------------------------------------------------------------------
-| APIs
+| API Routes
 |--------------------------------------------------------------------------
 */
 
@@ -294,11 +271,19 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| 404 Handler
+| Start outbound WhatsApp conversation
 |--------------------------------------------------------------------------
-|
-| Must be AFTER all routes and BEFORE the global error handler.
-|
+*/
+
+app.use(
+  '/api/whatsapp',
+  whatsappStartConversationRouter,
+);
+
+/*
+|--------------------------------------------------------------------------
+| 404
+|--------------------------------------------------------------------------
 */
 
 app.use(
@@ -326,11 +311,8 @@ app.use(
 
 /*
 |--------------------------------------------------------------------------
-| Global Error Handler
+| Global error handler
 |--------------------------------------------------------------------------
-|
-| This MUST be the last middleware in the application.
-|
 */
 
 const errorHandler:
@@ -341,24 +323,13 @@ const errorHandler:
     response,
     _next,
   ) => {
-    /*
-    |--------------------------------------------------------------------------
-    | Always log full error on server
-    |--------------------------------------------------------------------------
-    */
-
-    console.error(
-      '',
-    );
-
+    console.error('');
     console.error(
       '========================================',
     );
-
     console.error(
       'APPLICATION ERROR',
     );
-
     console.error(
       '========================================',
     );
@@ -389,7 +360,8 @@ const errorHandler:
     );
 
     if (
-      error instanceof Error
+      error instanceof
+      Error
     ) {
       console.error(
         'Message:',
@@ -406,18 +378,11 @@ const errorHandler:
       '========================================',
     );
 
-    console.error(
-      '',
-    );
-
-    /*
-    |--------------------------------------------------------------------------
-    | Invalid JSON
-    |--------------------------------------------------------------------------
-    */
+    console.error('');
 
     if (
-      error instanceof SyntaxError &&
+      error instanceof
+        SyntaxError &&
       'body' in error
     ) {
       const body:
@@ -443,14 +408,10 @@ const errorHandler:
 
       return response
         .status(400)
-        .json(body);
+        .json(
+          body,
+        );
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Prisma known errors
-    |--------------------------------------------------------------------------
-    */
 
     if (
       error instanceof
@@ -531,19 +492,13 @@ const errorHandler:
         );
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Prisma validation errors
-    |--------------------------------------------------------------------------
-    */
-
     if (
       error instanceof
       Prisma.PrismaClientValidationError
     ) {
-      const body:
-        ApiErrorResponse =
-        {
+      return response
+        .status(422)
+        .json({
           success:
             false,
 
@@ -552,34 +507,24 @@ const errorHandler:
 
           code:
             'PRISMA_VALIDATION_ERROR',
-        };
 
-      if (
-        process.env.NODE_ENV !==
-        'production'
-      ) {
-        body.details =
-          error.message;
-      }
-
-      return response
-        .status(422)
-        .json(body);
+          ...(process.env.NODE_ENV !==
+          'production'
+            ? {
+                details:
+                  error.message,
+              }
+            : {}),
+        });
     }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Prisma initialization errors
-    |--------------------------------------------------------------------------
-    */
 
     if (
       error instanceof
       Prisma.PrismaClientInitializationError
     ) {
-      const body:
-        ApiErrorResponse =
-        {
+      return response
+        .status(503)
+        .json({
           success:
             false,
 
@@ -588,43 +533,27 @@ const errorHandler:
 
           code:
             'DATABASE_UNAVAILABLE',
-        };
 
-      if (
-        process.env.NODE_ENV !==
-        'production'
-      ) {
-        body.details =
-          error.message;
-      }
-
-      return response
-        .status(503)
-        .json(body);
+          ...(process.env.NODE_ENV !==
+          'production'
+            ? {
+                details:
+                  error.message,
+              }
+            : {}),
+        });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Standard JavaScript Error
-    |--------------------------------------------------------------------------
-    */
-
     if (
-      error instanceof Error
+      error instanceof
+      Error
     ) {
       const customError =
         error as Error & {
-          statusCode?:
-            number;
-
-          status?:
-            number;
-
-          code?:
-            string;
-
-          details?:
-            unknown;
+          statusCode?: number;
+          status?: number;
+          code?: string;
+          details?: unknown;
         };
 
       const statusCode =
@@ -632,9 +561,11 @@ const errorHandler:
         customError.status ??
         500;
 
-      const body:
-        ApiErrorResponse =
-        {
+      return response
+        .status(
+          statusCode,
+        )
+        .json({
           success:
             false,
 
@@ -645,42 +576,28 @@ const errorHandler:
           code:
             customError.code ??
             'INTERNAL_SERVER_ERROR',
-        };
 
-      if (
-        customError.details !==
-        undefined
-      ) {
-        body.details =
-          customError.details;
-      }
+          ...(customError.details !==
+          undefined
+            ? {
+                details:
+                  customError.details,
+              }
+            : {}),
 
-      if (
-        process.env.NODE_ENV !==
-        'production'
-      ) {
-        body.stack =
-          error.stack;
-      }
-
-      return response
-        .status(
-          statusCode,
-        )
-        .json(
-          body,
-        );
+          ...(process.env.NODE_ENV !==
+          'production'
+            ? {
+                stack:
+                  error.stack,
+              }
+            : {}),
+        });
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Unknown error
-    |--------------------------------------------------------------------------
-    */
-
-    const body:
-      ApiErrorResponse =
-      {
+    return response
+      .status(500)
+      .json({
         success:
           false,
 
@@ -689,19 +606,7 @@ const errorHandler:
 
         code:
           'UNKNOWN_SERVER_ERROR',
-      };
-
-    if (
-      process.env.NODE_ENV !==
-      'production'
-    ) {
-      body.details =
-        error;
-    }
-
-    return response
-      .status(500)
-      .json(body);
+      });
   };
 
 app.use(
