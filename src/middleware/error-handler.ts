@@ -73,79 +73,38 @@ export const errorHandler: ErrorRequestHandler =
     response: Response,
     _next: NextFunction,
   ) => {
-    const requestId =
-      request.headers['x-request-id'];
-
-    console.error(
-      '========================================',
-    );
-
-    console.error(
-      'UNHANDLED APPLICATION ERROR',
-    );
-
-    console.error(
-      '========================================',
-    );
-
+    const requestId = request.headers['x-request-id'];
+    console.error('========================================',);
+    console.error('UNHANDLED APPLICATION ERROR',);
+    console.error('========================================',);
     console.error({
-      method:
-        request.method,
-
-      url:
-        request.originalUrl,
-
+      method: request.method,
+      url: request.originalUrl,
       requestId,
-
       error,
     });
 
-    console.error(
-      '========================================',
-    );
-
+    console.error('========================================',);
     let statusCode = 500;
-
     const body: ApiErrorResponse = {
       success: false,
-      message:
-        'Something went wrong while processing your request.',
+      message: 'Something went wrong while processing your request.',
     };
 
-    if (
-      typeof requestId === 'string'
-    ) {
-      body.requestId =
-        requestId;
+    if (typeof requestId === 'string') {
+      body.requestId = requestId;
     }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError
-    ) {
-      statusCode =
-        error.code === 'P2025'
-          ? 404
-          : 500;
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      statusCode = error.code === 'P2025' ? 404 : 500;
+      body.message = getPrismaReadableMessage(error,);
+      body.code = error.code;
 
-      body.message =
-        getPrismaReadableMessage(
-          error,
-        );
-
-      body.code =
-        error.code;
-
-      if (
-        process.env.NODE_ENV !==
-        'production'
-      ) {
-        body.details =
-          error.meta;
+      if (process.env.NODE_ENV !== 'production') {
+        body.details = error.meta;
       }
 
-      return response
-        .status(statusCode)
-        .json(body);
+      return response.status(statusCode).json(body);
     }
 
     if (
@@ -153,18 +112,12 @@ export const errorHandler: ErrorRequestHandler =
     ) {
       statusCode = 400;
 
-      body.message =
-        'Invalid database request. Please check the submitted data.';
+      body.message = 'Invalid database request. Please check the submitted data.';
 
-      body.code =
-        'PRISMA_VALIDATION_ERROR';
+      body.code ='PRISMA_VALIDATION_ERROR';
 
-      if (
-        process.env.NODE_ENV !==
-        'production'
-      ) {
-        body.error =
-          error.message;
+      if (process.env.NODE_ENV !=='production') {
+        body.error = error.message;
       }
 
       return response
