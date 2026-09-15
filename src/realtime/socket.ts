@@ -452,7 +452,7 @@ export function emitToConversation(
       event,
       data,
     );
-}
+} 
 
 export function emitToUser(
   userId: string,

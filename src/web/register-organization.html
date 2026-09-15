@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        Create Organization | Bevatel
+    </title>
+
+    <link rel="stylesheet" href="/admin/assets/register-organization.css">
+</head>
+
+<body>
+
+<div class="page">
+
+    <div class="brand-panel">
+
+        <div class="brand-content">
+
+            <a
+                href="/"
+                class="logo"
+            >
+                <span class="logo-mark">
+                    B
+                </span>
+
+                <span class="logo-text">
+                    Bevatel
+                </span>
+            </a>
+
+            <div class="brand-copy">
+
+                <div class="eyebrow">
+                    CLOUD CONTACT CENTER
+                </div>
+
+                <h1>
+                    Bring every customer conversation
+                    into one place.
+                </h1>
+
+                <p>
+                    Create your workspace and manage
+                    WhatsApp, Facebook, Instagram and
+                    your support team from one inbox.
+                </p>
+
+            </div>
+
+            <div class="features">
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        ✓
+                    </div>
+
+                    <div>
+                        <strong>
+                            Omnichannel Inbox
+                        </strong>
+
+                        <span>
+                            One workspace for your
+                            customer conversations.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        ✓
+                    </div>
+
+                    <div>
+                        <strong>
+                            Team Collaboration
+                        </strong>
+
+                        <span>
+                            Assign conversations and
+                            manage agents and roles.
+                        </span>
+                    </div>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">
+                        ✓
+                    </div>
+
+                    <div>
+                        <strong>
+                            Real-time Messaging
+                        </strong>
+
+                        <span>
+                            Messages and unread counts
+                            update while your team works.
+                        </span>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <main class="form-panel">
+
+        <div class="form-container">
+
+            <div class="mobile-logo">
+                <span class="logo-mark">
+                    B
+                </span>
+
+                <span class="logo-text">
+                    Bevatel
+                </span>
+            </div>
+
+            <div class="form-header">
+
+                <h2>
+                    Create your organization
+                </h2>
+
+                <p>
+                    Your first account will become
+                    the organization Super Admin.
+                </p>
+
+            </div>
+
+            <div
+                id="alert"
+                class="alert hidden"
+                role="alert"
+            ></div>
+
+            <form
+                id="registerOrganizationForm"
+                novalidate
+            >
+
+                <section class="form-section">
+
+                    <div class="section-title">
+                        Organization
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="organizationName"
+                        >
+                            Organization name
+                        </label>
+
+                        <input
+                            id="organizationName"
+                            name="organizationName"
+                            type="text"
+                            autocomplete="organization"
+                            placeholder="Example: Acme Support"
+                            maxlength="150"
+                            required
+                        >
+
+                        <div
+                            id="organizationNameError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="organizationSlug"
+                        >
+                            Workspace URL
+                        </label>
+
+                        <div class="slug-field">
+
+                            <span class="slug-prefix">
+                                bevatel /
+                            </span>
+
+                            <input
+                                id="organizationSlug"
+                                name="organizationSlug"
+                                type="text"
+                                placeholder="acme-support"
+                                maxlength="100"
+                                autocomplete="off"
+                                required
+                            >
+
+                        </div>
+
+                        <div class="field-hint">
+                            Lowercase letters, numbers,
+                            and hyphens only.
+                        </div>
+
+                        <div
+                            id="organizationSlugError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                </section>
+
+                <section class="form-section">
+
+                    <div class="section-title">
+                        Super Admin
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="name"
+                        >
+                            Full name
+                        </label>
+
+                        <input
+                            id="name"
+                            name="name"
+                            type="text"
+                            autocomplete="name"
+                            placeholder="Your full name"
+                            maxlength="100"
+                            required
+                        >
+
+                        <div
+                            id="nameError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="email"
+                        >
+                            Work email
+                        </label>
+
+                        <input
+                            id="email"
+                            name="email"
+                            type="email"
+                            autocomplete="email"
+                            placeholder="you@company.com"
+                            required
+                        >
+
+                        <div
+                            id="emailError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="password"
+                        >
+                            Password
+                        </label>
+
+                        <div class="password-field">
+
+                            <input
+                                id="password"
+                                name="password"
+                                type="password"
+                                autocomplete="new-password"
+                                placeholder="Minimum 8 characters"
+                                minlength="8"
+                                maxlength="128"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-target="password"
+                                aria-label="Show password"
+                            >
+                                Show
+                            </button>
+
+                        </div>
+
+                        <div
+                            id="passwordError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                    <div class="field">
+
+                        <label
+                            for="passwordConfirmation"
+                        >
+                            Confirm password
+                        </label>
+
+                        <div class="password-field">
+
+                            <input
+                                id="passwordConfirmation"
+                                name="passwordConfirmation"
+                                type="password"
+                                autocomplete="new-password"
+                                placeholder="Repeat your password"
+                                minlength="8"
+                                maxlength="128"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-target="passwordConfirmation"
+                                aria-label="Show password confirmation"
+                            >
+                                Show
+                            </button>
+
+                        </div>
+
+                        <div
+                            id="passwordConfirmationError"
+                            class="field-error"
+                        ></div>
+
+                    </div>
+
+                </section>
+
+                <label class="terms">
+
+                    <input
+                        id="terms"
+                        type="checkbox"
+                        required
+                    >
+
+                    <span>
+                        I agree to create this workspace
+                        and become its Super Admin.
+                    </span>
+
+                </label>
+
+                <button
+                    id="submitButton"
+                    class="submit-button"
+                    type="submit"
+                >
+
+                    <span
+                        id="submitButtonText"
+                    >
+                        Create organization
+                    </span>
+
+                    <span
+                        id="submitSpinner"
+                        class="spinner hidden"
+                    ></span>
+
+                </button>
+
+            </form>
+
+            <div class="login-link">
+                Already have an account?
+
+                <a href="/admin">
+                    Sign in
+                </a>
+            </div>
+
+        </div>
+
+    </main>
+
+</div>
+
+<script src="/admin/assets/register-organization.js"></script>
+</body>
+</html>
