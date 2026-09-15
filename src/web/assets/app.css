@@ -1951,158 +1951,74 @@ button {
         #fff;
 }
 
-
 .composer-tools {
-    display:
-        flex;
-
-    gap:
-        4px;
+    display: flex;
+    gap: 4px;
 }
-
 
 .composer-tools button {
-    width:
-        30px;
-
-    height:
-        30px;
-
-    border:
-        none;
-
-    border-radius:
-        6px;
-
-    background:
-        #f4f6f8;
-
-    color:
-        #667085;
+    width: 30px;
+    height: 30px;
+    border: none;
+    border-radius: 6px;
+    background: #f4f6f8;
+    color: #667085;
 }
-
 
 .message-composer textarea {
-    flex:
-        1;
-
-    min-height:
-        38px;
-
-    max-height:
-        100px;
-
-    resize:
-        none;
-
-    padding:
-        10px 11px;
-
-    border:
-        1px solid
-        var(--border-dark);
-
-    border-radius:
-        7px;
-
-    outline:
-        none;
-
-    font-size:
-        11px;
+    flex: 1;
+    min-height: 38px;
+    max-height: 100px;
+    resize: none;
+    padding: 10px 11px;
+    border: 1px solid var(--border-dark);
+    border-radius: 7px;
+    outline: none;
+    font-size: 11px;
 }
-
 
 .send-button {
-    min-width:
-        62px;
-
-    height:
-        38px;
-
-    border:
-        none;
-
-    border-radius:
-        7px;
-
-    background:
-        var(--blue);
-
-    color:
-        white;
-
-    font-size:
-        11px;
-
-    font-weight:
-        600;
+    min-width: 62px;
+    height: 38px;
+    border: none;
+    border-radius: 7px;
+    background: var(--blue);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
 }
-
-
-/* ========================================================= */
-/* Contact details                                           */
-/* ========================================================= */
-
+ 
 .contact-details-panel {
-    width:
-        280px;
-
-    flex-shrink:
-        0;
-
-    overflow-y:
-        auto;
-
-    border-left:
-        1px solid
-        var(--border);
-
-    background:
-        #fff;
+    width: 280px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+    background: #fff;
 }
-
 
 .contact-details-header {
-    height:
-        52px;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        space-between;
-
-    padding:
-        0 15px;
-
-    border-bottom:
-        1px solid
-        var(--border);
-
-    font-size:
-        12px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    border-bottom: 1px solidvar(--border);
+    font-size: 12px;
 }
-
 
 .contact-details-header button {
-    border:
-        none;
-
-    background:
-        transparent;
-
-    font-size:
-        18px;
-
-    color:
-        var(--text-light);
+    border: none;
+    background: transparent;
+    font-size: 18px;
+    color: var(--text-light);
+}
+.message-row.inbound {
+    justify-content: flex-start;
 }
 
-
+.message-row.outbound {
+    justify-content: flex-end;
+}
 .contact-profile {
     padding: 24px 15px;
     text-align: center;

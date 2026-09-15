@@ -6,15 +6,22 @@ import {
 } from 'bullmq';
 
 import {
+  emitToOrganization,
+  emitToConversation,
+} from '../../realtime/socket';
+
+import {
+  SOCKET_EVENTS,
+} from '../../../shared/socket-events';
+
+import {
   prisma,
 } from '../../../shared/prisma';
 
-const META_QUEUE_NAME =
-  'meta-webhooks';
 
-let metaWorker:
-  Worker | null =
-  null;
+const META_QUEUE_NAME = 'meta-webhooks';
+
+let metaWorker: Worker | null = null;
 
 type MetaWebhookJobData = {
   receiptId: string;

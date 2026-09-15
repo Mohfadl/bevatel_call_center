@@ -73,8 +73,26 @@ HDGV17x2Y8qZxGzapMe0632p
 
 su - deploy
 cd /var/www/apps/bevatel/bevatel
+ 
 
-<<<<<<< HEAD
+# Save the untracked VPS files temporarily
+git stash push -u -m "VPS files before main pull"
+
+# Verify clean
+git status
+
+# Make sure you're on main
+git checkout main
+
+# Pull latest main
+git pull origin main
+
+# Restore your local VPS files
+git stash pop
+
+# Check result
+git status
+
 # after update code use below codes commands
 npm ci
 npx prisma generate
@@ -84,25 +102,13 @@ pm2 restart bevatel-api
 pm2 status
 
 curl http://127.0.0.1:4000/health
-=======
-git pull origin main
->>>>>>> 68d71a9eaa9b2e42631a132c70cd45592b9f4d5b
 
 pm2 restart bevatel-api --update-env
 pm2 status
 pm2 logs bevatel-api --lines 100
 
-<<<<<<< HEAD
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u deploy --hp /home/deploy
 
-=======
-cd /var/www/apps/bevatel
-git pull origin development
-npm ci
-npx prisma generate
-npx tsc --noEmit
-pm2 restart bevatel-api --update-env
->>>>>>> 68d71a9eaa9b2e42631a132c70cd45592b9f4d5b
 
  
 

@@ -4,41 +4,34 @@ import axios from 'axios';
 import { Worker } from 'bullmq';
 
 import { prisma } from '../../../../shared/prisma';
+import {
+  emitToOrganization,
+  emitToConversation,
+} from '../../../realtime/socket';
+
+import {
+  SOCKET_EVENTS,
+} from '../../../../shared/socket-events';
 
 const connection = {
-  host:
-    process.env.REDIS_HOST ??
-    '127.0.0.1',
-
-  port:
-    Number(
-      process.env.REDIS_PORT ??
-      6379,
-    ),
+  host: process.env.REDIS_HOST ?? '127.0.0.1',
+  port: Number(process.env.REDIS_PORT ??6379,),
 };
 
-async function handleWhatsApp(
-  payload: any,
-) {
-  const entries =
-    payload?.entry ?? [];
-
+async function handleWhatsApp(payload: any,) 
+{
+  const entries = payload?.entry ?? [];
   for (const entry of entries) {
-    const changes =
-      entry?.changes ?? [];
+    const changes = entry?.changes ?? [];
 
     for (const change of changes) {
-      const value =
-        change?.value;
+      const value = change?.value;
 
       if (!value) {
         continue;
       }
 
-      const phoneNumberId =
-        value?.metadata
-          ?.phone_number_id;
-
+      const phoneNumberId = value?.metadata?.phone_number_id;
       if (!phoneNumberId) {
         continue;
       }
@@ -46,13 +39,9 @@ async function handleWhatsApp(
       const channelAccount =
         await prisma.channelAccount.findFirst({
           where: {
-            channel:
-              'WHATSAPP',
-
+            channel: 'WHATSAPP',
             phoneNumberId,
-
-            status:
-              'ACTIVE',
+            status: 'ACTIVE',
           },
         });
 
@@ -71,13 +60,9 @@ async function handleWhatsApp(
       |--------------------------------------------------------------------------
       */
 
-      const statuses =
-        value?.statuses ?? [];
-
+      const statuses = value?.statuses ?? [];
       for (const status of statuses) {
-        const externalMessageId =
-          status?.id;
-
+        const externalMessageId = status?.id;
         if (!externalMessageId) {
           continue;
         }
@@ -301,14 +286,9 @@ async function handleWhatsApp(
 
           await prisma.conversationEvent.create({
             data: {
-              organizationId:
-                channelAccount.organizationId,
-
-              conversationId:
-                conversation.id,
-
-              type:
-                'CREATED',
+              organizationId: channelAccount.organizationId,
+              conversationId: conversation.id,
+              type: 'CREATED',
             },
           });
         }
@@ -328,70 +308,40 @@ async function handleWhatsApp(
           | 'LOCATION' =
           'TEXT';
 
-        let body:
-          string | undefined;
-
-        let mediaUrl:
-          string | undefined;
-
-        switch (
-          incoming.type
-        ) {
+        let body: string | undefined;
+        let mediaUrl: string | undefined;
+        switch (incoming.type) {
           case 'text':
             type = 'TEXT';
-
-            body =
-              incoming.text?.body;
+            body = incoming.text?.body;
             break;
 
           case 'image':
             type = 'IMAGE';
-
-            body =
-              incoming.image?.caption;
-
-            mediaUrl =
-              incoming.image?.id;
+            body = incoming.image?.caption;
+            mediaUrl = incoming.image?.id;
             break;
 
           case 'audio':
             type = 'AUDIO';
-
-            mediaUrl =
-              incoming.audio?.id;
+            mediaUrl = incoming.audio?.id;
             break;
 
           case 'video':
             type = 'VIDEO';
-
-            body =
-              incoming.video?.caption;
-
-            mediaUrl =
-              incoming.video?.id;
+            body = incoming.video?.caption;
+            mediaUrl = incoming.video?.id;
             break;
 
           case 'document':
-            type =
-              'DOCUMENT';
-
-            body =
-              incoming.document
-                ?.filename;
-
-            mediaUrl =
-              incoming.document
-                ?.id;
+            type = 'DOCUMENT';
+            body = incoming.document?.filename;
+            mediaUrl = incoming.document?.id;
             break;
 
           case 'location':
-            type =
-              'LOCATION';
-
-            body =
-              JSON.stringify(
-                incoming.location,
-              );
+            type = 'LOCATION';
+            body = JSON.stringify(incoming.location,);
             break;
         }
 
@@ -400,56 +350,48 @@ async function handleWhatsApp(
             data: {
               organizationId:
                 channelAccount.organizationId,
-
-              conversationId:
-                conversation.id,
-
-              contactId:
-                contact.id,
-
-              direction:
-                'INBOUND',
-
+              conversationId: conversation.id,
+              contactId: contact.id,
+              direction: 'INBOUND',
               type,
-
               body,
-
               mediaUrl,
-
               externalMessageId,
-
-              status:
-                'RECEIVED',
-
-              metadata:
-                incoming,
+              status: 'RECEIVED',
+              metadata: incoming,
             },
           });
 
         await prisma.conversation.update({
           where: {
-            id:
-              conversation.id,
+            id: conversation.id,
           },
 
           data: {
-            lastMessageAt:
-              message.createdAt,
+            lastMessageAt: message.createdAt,
           },
         });
 
         await prisma.conversationEvent.create({
           data: {
-            organizationId:
-              channelAccount.organizationId,
-
-            conversationId:
-              conversation.id,
-
-            type:
-              'MESSAGE_RECEIVED',
+            organizationId: channelAccount.organizationId,
+            conversationId: conversation.id,
+            type: 'MESSAGE_RECEIVED',
           },
         });
+
+        emitToOrganization(
+          channelAccount.organizationId,
+          SOCKET_EVENTS.MESSAGE_CREATED,
+          message,
+        );
+
+        emitToConversation(
+          conversation.id,
+          SOCKET_EVENTS.MESSAGE_CREATED,
+          message,
+        );
+
       }
     }
   }
@@ -458,30 +400,18 @@ async function handleWhatsApp(
 const worker =
   new Worker(
     'meta-webhooks',
-
     async job => {
-      const {
-        receiptId,
-        payload,
-      } = job.data;
-
-      if (
-        payload?.object ===
-        'whatsapp_business_account'
-      ) {
-        await handleWhatsApp(
-          payload,
-        );
+      const {receiptId,payload,} = job.data;
+      if (payload?.object === 'whatsapp_business_account') {
+        await handleWhatsApp(payload,);
       }
-
       await prisma.webhookReceipt.update({
         where: {
           id: receiptId,
         },
 
         data: {
-          processedAt:
-            new Date(),
+          processedAt: new Date(),
         },
       });
     },
