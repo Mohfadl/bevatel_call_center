@@ -2162,218 +2162,100 @@ button {
 
 
 .details-status {
-    display:
-        inline-block;
-
-    margin-top:
-        7px;
-
-    padding:
-        3px 8px;
-
-    border-radius:
-        10px;
-
-    background:
-        var(--green-light);
-
-    color:
-        var(--green);
-
-    font-size:
-        9px;
+    display: inline-block;
+    margin-top: 7px;
+    padding: 3px 8px;
+    border-radius: 10px;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 9px;
 }
-
 
 .contact-detail-list {
-    padding:
-        8px 15px;
+    padding: 8px 15px;
 }
-
 
 .contact-detail-row {
-    display:
-        flex;
-
-    flex-direction:
-        column;
-
-    gap:
-        4px;
-
-    padding:
-        10px 0;
-
-    border-bottom:
-        1px solid
-        #f0f1f3;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f1f3;
 }
-
 
 .contact-detail-row span {
-    color:
-        var(--text-soft);
-
-    font-size:
-        9px;
+    color: var(--text-soft);
+    font-size: 9px;
 }
-
 
 .contact-detail-row strong {
-    font-size:
-        10px;
-
-    font-weight:
-        500;
-
-    word-break:
-        break-all;
+    font-size: 10px;
+    font-weight: 500;
+    word-break: break-all;
 }
-
 
 .details-section {
-    padding:
-        15px;
+    padding: 15px;
 }
-
 
 .details-section h4 {
-    margin:
-        0 0 10px;
-
-    font-size:
-        11px;
+    margin: 0 0 10px;
+    font-size: 11px;
 }
-
 
 .conversation-labels {
-    display:
-        flex;
-
-    flex-wrap:
-        wrap;
-
-    gap:
-        6px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
 }
-
 
 .conversation-label {
-    padding:
-        4px 7px;
-
-    border-radius:
-        10px;
-
-    background:
-        #f0f4ff;
-
-    color:
-        #4169b2;
-
-    font-size:
-        9px;
+    padding: 4px 7px;
+    border-radius: 10px;
+    background: #f0f4ff;
+    color: #4169b2;
+    font-size: 9px;
 }
 
-
-/* ========================================================= */
-/* Toast                                                     */
-/* ========================================================= */
-
+ 
 .toast-container {
-    position:
-        fixed;
-
-    right:
-        20px;
-
-    bottom:
-        20px;
-
-    z-index:
-        9999;
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 9999;
 }
-
 
 .toast {
-    min-width:
-        220px;
-
-    margin-top:
-        8px;
-
-    padding:
-        11px 13px;
-
-    border-radius:
-        8px;
-
-    background:
-        #101828;
-
-    color:
-        #fff;
-
-    box-shadow:
-        var(--shadow);
-
-    font-size:
-        11px;
+    min-width: 220px;
+    margin-top: 8px;
+    padding: 11px 13px;
+    border-radius: 8px;
+    background: #101828;
+    color: #fff;
+    box-shadow: var(--shadow);
+    font-size: 11px;
 }
-
 
 .toast.error {
-    background:
-        #b42318;
+    background: #b42318;
 }
-
 
 .toast.success {
-    background:
-        #067647;
+    background: #067647;
 }
 
-
-/* ========================================================= */
-/* Responsive                                                */
-/* ========================================================= */
-
-@media (
-    max-width:
-        1000px
-) {
+@media (max-width: 1000px) {
     :root {
-        --sidebar-width:
-            180px;
-
-        --conversation-width:
-            340px;
+        --sidebar-width: 180px;
+        --conversation-width: 340px;
     }
 
-
     .contact-details-panel {
-        position:
-            absolute;
-
-        right:
-            0;
-
-        top:
-            64px;
-
-        bottom:
-            0;
-
-        z-index:
-            20;
-
-        box-shadow:
-            -10px 0 30px
-            rgba(
-                15,
-                23,
-                42,
-                0.12
-            );
+        position: absolute;
+        right: 0;
+        top: 64px;
+        bottom: 0;
+        z-index: 20;
+        box-shadow: -10px 0 30px rgba(15,23,42,0.12);
     }
 }

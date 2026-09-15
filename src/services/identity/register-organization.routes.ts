@@ -4,555 +4,273 @@ import {
   type Request,
   type Response,
 } from 'express';
-
-import bcrypt from 'bcryptjs';
+ 
 import { z } from 'zod';
 
 import {
   prisma,
 } from '../../../shared/prisma';
 
-const router =
-  Router();
+import {
+  PasswordService,
+} from '../../../shared/password';
 
-/*
-|--------------------------------------------------------------------------
-| Validation
-|--------------------------------------------------------------------------
-*/
+const router = Router();
 
 const registerOrganizationSchema =
   z
     .object({
-      organizationName:
-        z
-          .string()
-          .trim()
-          .min(
-            2,
-            'Organization name must contain at least 2 characters.',
-          )
-          .max(
-            150,
-            'Organization name cannot exceed 150 characters.',
-          ),
+      organizationName: z.string().trim()
+                      .min(2,'Organization name must contain at least 2 characters.',)
+                        .max(150,'Organization name cannot exceed 150 characters.',),
+      organizationSlug: z.string().trim()
+                      .min(2,'Organization slug must contain at least 2 characters.',)
+                        .max(100,'Organization slug cannot exceed 100 characters.',)
+                          .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/,'Organization slug may contain lowercase letters, numbers, and hyphens only.',),
+      name: z.string().trim()
+          .min(2,'Your name must contain at least 2 characters.',)
+            .max(100,'Your name cannot exceed 100 characters.',),
+      email: z.string().trim().email('Please enter a valid email address.',)
+            .transform(value =>value.toLowerCase(),),
+      password: z.string().min(8,'Password must contain at least 8 characters.',)
+              .max(128,'Password cannot exceed 128 characters.',),
 
-      organizationSlug:
-        z
-          .string()
-          .trim()
-          .min(
-            2,
-            'Organization slug must contain at least 2 characters.',
-          )
-          .max(
-            100,
-            'Organization slug cannot exceed 100 characters.',
-          )
-          .regex(
-            /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-            'Organization slug may contain lowercase letters, numbers, and hyphens only.',
-          ),
-
-      name:
-        z
-          .string()
-          .trim()
-          .min(
-            2,
-            'Your name must contain at least 2 characters.',
-          )
-          .max(
-            100,
-            'Your name cannot exceed 100 characters.',
-          ),
-
-      email:
-        z
-          .string()
-          .trim()
-          .email(
-            'Please enter a valid email address.',
-          )
-          .transform(
-            value =>
-              value.toLowerCase(),
-          ),
-
-      password:
-        z
-          .string()
-          .min(
-            8,
-            'Password must contain at least 8 characters.',
-          )
-          .max(
-            128,
-            'Password cannot exceed 128 characters.',
-          ),
-
-      passwordConfirmation:
-        z
-          .string()
-          .min(
-            1,
-            'Password confirmation is required.',
-          ),
+      passwordConfirmation: z.string().min(1,'Password confirmation is required.',),
     })
     .superRefine(
-      (
-        data,
-        context,
-      ) => {
-        if (
-          data.password !==
-          data.passwordConfirmation
-        ) {
+      (data,context,) => {
+        if (data.password !== data.passwordConfirmation ) {
           context.addIssue({
-            code:
-              z.ZodIssueCode.custom,
-
+            code: z.ZodIssueCode.custom,
             path: [
               'passwordConfirmation',
             ],
-
-            message:
-              'Password confirmation does not match.',
+            message: 'Password confirmation does not match.',
           });
         }
       },
     );
 
-/*
-|--------------------------------------------------------------------------
-| Helpers
-|--------------------------------------------------------------------------
-*/
 
-function normalizeSlug(
-  value:
-    string,
-): string {
+function normalizeSlug(value: string, ): string {
   return value
     .trim()
     .toLowerCase()
-    .replace(
-      /[^a-z0-9\s-]/g,
-      '',
+    .replace(/[^a-z0-9\s-]/g,'',
     )
-    .replace(
-      /\s+/g,
-      '-',
-    )
-    .replace(
-      /-+/g,
-      '-',
-    )
-    .replace(
-      /^-|-$/g,
-      '',
-    );
+    .replace(/\s+/g,'-',)
+    .replace(/-+/g,'-',)
+    .replace(/^-|-$/g,'',);
 }
 
-/*
-|--------------------------------------------------------------------------
-| Generate slug
-|--------------------------------------------------------------------------
-|
-| This endpoint is useful for the UI while the user types an organization
-| name.
-|
-| GET /api/auth/register-organization/slug?name=My Company
-|
-*/
 
-router.get(
-  '/register-organization/slug',
-
+router.get('/register-organization/slug',
   async (
-    request:
-      Request,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: Request,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      const name =
-        String(
-          request.query.name ??
-          '',
-        )
-          .trim();
-
-      if (
-        !name
-      ) {
+      const name = String(request.query.name ??'',).trim();
+      if (!name) {
         return response
           .status(422)
           .json({
-            success:
-              false,
-
-            message:
-              'Organization name is required.',
-
-            code:
-              'ORGANIZATION_NAME_REQUIRED',
+            success: false,
+            message: 'Organization name is required.',
+            code: 'ORGANIZATION_NAME_REQUIRED',
           });
       }
 
-      const baseSlug =
-        normalizeSlug(
-          name,
-        );
-
-      if (
-        !baseSlug
-      ) {
+      const baseSlug = normalizeSlug(name,);
+      if (!baseSlug) {
         return response
           .status(422)
           .json({
-            success:
-              false,
-
-            message:
-              'Unable to generate a valid organization slug from this name.',
-
-            code:
-              'INVALID_ORGANIZATION_NAME',
+            success: false,
+            message: 'Unable to generate a valid organization slug from this name.',
+            code: 'INVALID_ORGANIZATION_NAME',
           });
       }
 
-      let slug =
-        baseSlug;
-
-      let counter =
-        1;
-
-      while (
-        await prisma.organization.findUnique({
-          where: {
-            slug,
-          },
-
-          select: {
-            id:
-              true,
-          },
-        })
-      ) {
-        counter +=
-          1;
-
-        slug =
-          `${baseSlug}-${counter}`;
+      let slug = baseSlug;
+      let counter = 1;
+      while (await prisma.organization.findUnique({where: {slug}, select: {id: true},})) {
+        counter += 1;
+        slug = `${baseSlug}-${counter}`;
       }
 
       return response
         .status(200)
         .json({
-          success:
-            true,
-
-          data: {
-            slug,
-          },
+          success: true,
+          data: { slug,},
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'Generate organization slug error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('Generate organization slug error:',error,);
+      return next(error,);
     }
   },
 );
 
-/*
-|--------------------------------------------------------------------------
-| Register Organization
-|--------------------------------------------------------------------------
-|
-| POST /api/auth/register-organization
-|
-| Creates:
-| - Organization
-| - First user as SUPER_ADMIN
-|
-| The organizationId is generated internally.
-| The frontend NEVER needs to provide organizationId.
-|
-*/
 
-router.post(
-  '/register-organization',
-
-  async (
-    request:
-      Request,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
-  ) => {
+router.post('/register-organization',
+  async (request,response,next,) => {
     try {
-      const body = {
-        ...request.body,
-
-        organizationSlug:
-          normalizeSlug(
-            String(
-              request.body
-                ?.organizationSlug ??
-              request.body
-                ?.organizationName ??
-              '',
-            ),
-          ),
-      };
-
-      const parsed =
-        registerOrganizationSchema.safeParse(
-          body,
-        );
-
-      if (
-        !parsed.success
-      ) {
-        return response
-          .status(422)
-          .json({
-            success:
-              false,
-
-            message:
-              'The submitted registration information is invalid.',
-
-            code:
-              'VALIDATION_ERROR',
-
-            errors:
-              parsed.error.flatten(),
-          });
-      }
-
       const {
         organizationName,
         organizationSlug,
         name,
         email,
         password,
-      } =
-        parsed.data;
+        passwordConfirmation,
+      } = request.body;
 
-      /*
-      |--------------------------------------------------------------------------
-      | Check organization slug
-      |--------------------------------------------------------------------------
-      */
+      if (
+        !organizationName ||
+        !name ||
+        !email ||
+        !password ||
+        !passwordConfirmation
+      ) {
+        return response
+          .status(422)
+          .json({
+            success: false,
+            message: 'All required fields must be provided.',
+            code: 'VALIDATION_ERROR',
+          });
+      }
+
+      if (password !== passwordConfirmation ) {
+        return response
+          .status(422)
+          .json({
+            success: false,
+            message: 'Password confirmation does not match.',
+            code: 'PASSWORD_CONFIRMATION_MISMATCH',
+          });
+      }
+
+      if (String(password).length < 8 ) {
+        return response
+          .status(422)
+          .json({
+            success: false,
+            message: 'Password must contain at least 8 characters.',
+            code: 'INVALID_PASSWORD',
+          });
+      }
+
+      const normalizedEmail = String(email).trim().toLowerCase();
+
+      const normalizedSlug =
+        String(organizationSlug || organizationName,)
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g,'-',)
+          .replace(/^-+|-+$/g,'',);
+
+      if (!normalizedSlug) {
+        return response
+          .status(422)
+          .json({
+            success: false,
+            message: 'Organization slug is invalid.',
+            code: 'INVALID_ORGANIZATION_SLUG',
+          });
+      }
 
       const existingOrganization =
         await prisma.organization.findUnique({
           where: {
-            slug:
-              organizationSlug,
+            slug: normalizedSlug,
           },
 
           select: {
-            id:
-              true,
-
-            name:
-              true,
-
-            slug:
-              true,
+            id: true,
           },
         });
 
-      if (
-        existingOrganization
-      ) {
+      if (existingOrganization) {
         return response
           .status(409)
           .json({
-            success:
-              false,
-
-            message:
-              'This organization URL is already being used.',
-
-            code:
-              'ORGANIZATION_SLUG_EXISTS',
-
-            errors: {
-              fieldErrors: {
-                organizationSlug: [
-                  'Please choose another organization slug.',
-                ],
-              },
-            },
+            success: false,
+            message: 'This organization slug is already in use.',
+            code: 'ORGANIZATION_ALREADY_EXISTS',
           });
       }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Global email check
-      |--------------------------------------------------------------------------
-      |
-      | Your Prisma schema currently allows the same email in different
-      | organizations.
-      |
-      | Because we want login to eventually work using email + password only,
-      | we prevent duplicate emails globally at application level.
-      |
-      */
 
       const existingUser =
         await prisma.user.findFirst({
           where: {
-            email,
+            email: normalizedEmail,
           },
 
           select: {
-            id:
-              true,
-
-            email:
-              true,
+            id: true,
           },
         });
 
-      if (
-        existingUser
-      ) {
+      if (existingUser) {
         return response
           .status(409)
           .json({
-            success:
-              false,
-
-            message:
-              'An account with this email address already exists.',
-
-            code:
-              'EMAIL_ALREADY_EXISTS',
-
-            errors: {
-              fieldErrors: {
-                email: [
-                  'This email address is already registered.',
-                ],
-              },
-            },
+            success: false,
+            message: 'This email address is already registered.',
+            code: 'EMAIL_ALREADY_EXISTS',
           });
       }
 
-      /*
-      |--------------------------------------------------------------------------
-      | Hash password
-      |--------------------------------------------------------------------------
-      */
-
-      const passwordHash =
-        await bcrypt.hash(
-          password,
-          12,
-        );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Create Organization + Owner Atomically
-      |--------------------------------------------------------------------------
-      |
-      | If creating either record fails, the complete transaction rolls back.
-      |
-      */
+ 
+      const passwordHash = await PasswordService.hash(String(password),);
+      const passwordHashVerified = await PasswordService.verify(String(password),passwordHash,);
+      if (!passwordHashVerified) {
+        throw new Error('Generated password hash could not be verified.',);
+      }
 
       const result =
         await prisma.$transaction(
           async transaction => {
             const organization =
-              await transaction
-                .organization
-                .create({
-                  data: {
-                    name:
-                      organizationName,
+              await transaction.organization.create({
+                data: {
+                  name: String(organizationName,).trim(),
+                  slug: normalizedSlug,
+                },
 
-                    slug:
-                      organizationSlug,
-                  },
-
-                  select: {
-                    id:
-                      true,
-
-                    name:
-                      true,
-
-                    slug:
-                      true,
-
-                    createdAt:
-                      true,
-                  },
-                });
+                select: {
+                  id: true,
+                  name: true,
+                  slug: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              });
 
             const user =
-              await transaction
-                .user
-                .create({
-                  data: {
-                    organizationId:
-                      organization.id,
+              await transaction.user.create({
+                data: {
+                  organizationId: organization.id,
+                  name: String(name,).trim(),
+                  email: normalizedEmail,
+                  passwordHash,
+                  role: 'SUPER_ADMIN',
+                  status: 'ACTIVE',
+                },
 
-                    name,
-
-                    email,
-
-                    passwordHash,
-
-                    role:
-                      'SUPER_ADMIN',
-
-                    status:
-                      'ACTIVE',
-                  },
-
-                  select: {
-                    id:
-                      true,
-
-                    organizationId:
-                      true,
-
-                    name:
-                      true,
-
-                    email:
-                      true,
-
-                    role:
-                      true,
-
-                    status:
-                      true,
-
-                    createdAt:
-                      true,
-                  },
-                });
+                select: {
+                  id: true,
+                  organizationId: true,
+                  name: true,
+                  email: true,
+                  role: true,
+                  status: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              });
 
             return {
               organization,
@@ -564,60 +282,15 @@ router.post(
       return response
         .status(201)
         .json({
-          success:
-            true,
-
-          message:
-            'Organization registered successfully.',
-
+          success: true,
+          message: 'Organization registered successfully.',
           data: {
-            organization:
-              result.organization,
-
-            user:
-              result.user,
+            organization: result.organization,
+            user: result.user,
           },
         });
-    } catch (
-      error:
-        any
-    ) {
-      /*
-      |--------------------------------------------------------------------------
-      | Prisma uniqueness fallback
-      |--------------------------------------------------------------------------
-      |
-      | This protects against two registration requests arriving at almost
-      | exactly the same moment.
-      |
-      */
-
-      if (
-        error?.code ===
-        'P2002'
-      ) {
-        return response
-          .status(409)
-          .json({
-            success:
-              false,
-
-            message:
-              'The organization or account already exists.',
-
-            code:
-              'DUPLICATE_REGISTRATION',
-          });
-      }
-
-      console.error(
-        'Register organization error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      next(error);
     }
   },
 );

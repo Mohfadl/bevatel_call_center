@@ -4,100 +4,42 @@ import {
   type Request,
   type Response,
 } from 'express';
-
-import bcrypt from 'bcryptjs';
+ 
 import { z } from 'zod';
 
 import {
   prisma,
 } from '../../../shared/prisma';
 
-const router =
-  Router();
+import {
+  PasswordService,
+} from '../../../shared/password';
 
+const router = Router();
 const registerSchema =
   z.object({
-    organizationId:
-      z
-        .string()
-        .trim()
-        .min(
-          1,
-          'Organization ID is required',
-        ),
-
-    name:
-      z
-        .string()
-        .trim()
-        .min(
-          2,
-          'Name must contain at least 2 characters',
-        )
-        .max(
-          100,
-          'Name cannot exceed 100 characters',
-        ),
-
-    email:
-      z
-        .string()
-        .trim()
-        .email(
-          'Invalid email address',
-        )
-        .transform(
-          (
-            value,
-          ) =>
-            value.toLowerCase(),
-        ),
-
-    password:
-      z
-        .string()
-        .min(
-          8,
-          'Password must contain at least 8 characters',
-        ),
+    organizationId: z.string().trim().min(1,'Organization ID is required',),
+    name: z.string().trim().min(2,'Name must contain at least 2 characters',).max(100,'Name cannot exceed 100 characters',),
+    email: z.string().trim().email('Invalid email address',).transform((value,) =>value.toLowerCase(),),
+    password: z.string().min(8,'Password must contain at least 8 characters',),
   });
 
-router.post(
-  '/register',
-
+router.post('/register',
   async (
-    request:
-      Request,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: Request,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      const parsed =
-        registerSchema.safeParse(
-          request.body,
-        );
-
-      if (
-        !parsed.success
-      ) {
+      const parsed = registerSchema.safeParse(request.body,);
+      if (!parsed.success) {
         return response
           .status(422)
           .json({
-            success:
-              false,
-
-            message:
-              'The submitted registration data is invalid.',
-
-            code:
-              'VALIDATION_ERROR',
-
-            errors:
-              parsed.error.flatten(),
+            success: false,
+            message: 'The submitted registration data is invalid.',
+            code: 'VALIDATION_ERROR',
+            errors: parsed.error.flatten(),
           });
       }
 
@@ -106,158 +48,88 @@ router.post(
         name,
         email,
         password,
-      } =
-        parsed.data;
+      } = parsed.data;
 
       const organization =
         await prisma.organization.findUnique({
           where: {
-            id:
-              organizationId,
+            id: organizationId,
           },
 
           select: {
-            id:
-              true,
-
-            name:
-              true,
-
-            slug:
-              true,
+            id: true,
+            name: true,
+            slug: true,
           },
         });
 
-      if (
-        !organization
-      ) {
+      if (!organization) {
         return response
           .status(404)
           .json({
-            success:
-              false,
-
-            message:
-              'Organization was not found.',
-
-            code:
-              'ORGANIZATION_NOT_FOUND',
+            success: false,
+            message: 'Organization was not found.',
+            code: 'ORGANIZATION_NOT_FOUND',
           });
       }
 
       const existingUser =
         await prisma.user.findFirst({
           where: {
-            organizationId,
-            email,
+            organizationId, email,
           },
 
           select: {
-            id:
-              true,
+            id: true,
           },
         });
 
-      if (
-        existingUser
-      ) {
+      if (existingUser) {
         return response
           .status(409)
           .json({
-            success:
-              false,
-
-            message:
-              'A user with this email already exists in this organization.',
-
-            code:
-              'EMAIL_ALREADY_EXISTS',
+            success: false,
+            message: 'A user with this email already exists in this organization.',
+            code: 'EMAIL_ALREADY_EXISTS',
           });
       }
-
-      const passwordHash =
-        await bcrypt.hash(
-          password,
-          12,
-        );
-
-      /*
-      |--------------------------------------------------------------------------
-      | Important security rule
-      |--------------------------------------------------------------------------
-      |
-      | Public registration NEVER accepts role from the request.
-      |
-      | Everyone starts as AGENT.
-      | ADMIN / SUPER_ADMIN can promote users later.
-      |
-      */
-
+ 
+      const passwordHash = await PasswordService.hash(password,);
       const user =
         await prisma.user.create({
           data: {
             organizationId,
             name,
-            email,
+            email: email.trim().toLowerCase(),
             passwordHash,
-
-            role:
-              'AGENT',
-
-            status:
-              'ACTIVE',
+            role: 'AGENT',
+            status: 'ACTIVE',
           },
 
           select: {
-            id:
-              true,
-
-            organizationId:
-              true,
-
-            name:
-              true,
-
-            email:
-              true,
-
-            role:
-              true,
-
-            status:
-              true,
-
-            createdAt:
-              true,
+            id: true,
+            organizationId: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            createdAt: true,
           },
         });
 
       return response
         .status(201)
         .json({
-          success:
-            true,
-
-          message:
-            'Registration completed successfully.',
-
+          success: true,
+          message: 'Registration completed successfully.',
           data: {
             user,
-
             organization,
           },
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'Register user error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('Register user error:',error,);
+      return next(error,);
     }
   },
 );
