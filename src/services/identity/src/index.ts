@@ -7,14 +7,14 @@ import morgan from 'morgan';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
-import { prisma } from '../../../shared/prisma';
+import { prisma } from '../../../../shared/prisma';
 
 import {
   allowRoles,
   AuthRequest,
   authMiddleware,
   signToken,
-} from '../../../shared/auth';
+} from '../../../../shared/auth';
 
 const app = express();
 

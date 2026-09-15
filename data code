@@ -35,6 +35,39 @@ FROM mysql.user
 WHERE user = 'bevatel';
 EXIT;
 
+npx tsx -e "
+import bcrypt from 'bcryptjs';
+import { prisma } from './shared/prisma';
+
+const email = 'fadl@example.com';
+const password = '12345678!';
+
+const user = await prisma.user.findFirst({
+  where: {
+    email
+  }
+});
+
+if (!user) {
+  console.log('USER NOT FOUND');
+  process.exit(0);
+}
+
+const matches = await bcrypt.compare(
+  password,
+  user.passwordHash
+);
+
+console.log({
+  email: user.email,
+  organizationId: user.organizationId,
+  role: user.role,
+  status: user.status,
+  passwordMatches: matches
+});
+
+await prisma.\$disconnect();
+"
 
 git clone git@github.com:Mohfadl/bevatel_call_center.git bevatel
 
@@ -52,6 +85,13 @@ sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -
 pm2 restart bevatel-api
 
 
+cd /var/www/apps/bevatel
+
+npx tsx \
+  scripts/reset-user-password.ts \
+  'fadl@example.com' \
+  'YOUR_NEW_PASSWORD'
+  
 
 
 OWNER_ORGANIZATION_NAME="Bevatel" \

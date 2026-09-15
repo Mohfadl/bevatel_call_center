@@ -8,12 +8,12 @@ import {
 
 import {
   prisma,
-} from '../../../shared/prisma';
+} from '../../../../shared/prisma';
 
 import {
   AuthRequest,
   authMiddleware,
-} from '../../../shared/auth';
+} from '../../../../shared/auth';
 
 const router =
   Router();
