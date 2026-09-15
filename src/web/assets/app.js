@@ -1,125 +1,41 @@
-const API =
-    '/api';
+const API = '/api';
+let token = localStorage.getItem('bevatel_token', );
+let currentUserEmail =localStorage.getItem('bevatel_email',);
+let conversations = [];
+let channels = [];
+let labels = [];
+let selectedConversation = null;
+let selectedChannelId = null;
+let assignmentFilter = 'unassigned';
+let sidebarFilter = 'all';
+ 
+let socket = null;
+let socketConnected = false;
+let joinedConversationId = null;
 
-
-let token =
-    localStorage.getItem(
-        'bevatel_token',
-    );
-
-
-let currentUserEmail =
-    localStorage.getItem(
-        'bevatel_email',
-    );
-
-
-let conversations =
-    [];
-
-
-let channels =
-    [];
-
-
-let labels =
-    [];
-
-
-let selectedConversation =
-    null;
-
-
-let selectedChannelId =
-    null;
-
-
-let assignmentFilter =
-    'unassigned';
-
-
-let sidebarFilter =
-    'all';
-
-
-/*
-|--------------------------------------------------------------------------
-| DOM Helpers
-|--------------------------------------------------------------------------
-*/
-
-function element(
-    id,
-) {
-    return document
-        .getElementById(
-            id,
-        );
+function element(id,) {
+    return document.getElementById(id,);
 }
 
-
-function escapeHtml(
-    value,
-) {
-    const div =
-        document
-            .createElement(
-                'div',
-            );
-
-    div.textContent =
-        value ??
-        '';
-
+function escapeHtml(value,) {
+    const div = document.createElement('div',);
+    div.textContent = value ?? '';
     return div.innerHTML;
 }
 
-
-function initials(
-    name,
-) {
-    const safeName =
-        String(
-            name ??
-            '',
-        )
-            .trim();
-
-
+function initials(name,) {
+    const safeName = String(name ??'',).trim();
     if (!safeName) {
         return '?';
     }
-
-
-    const parts =
-        safeName
-            .split(/\s+/)
-            .filter(Boolean);
-
-
-    if (
-        parts.length ===
-        1
-    ) {
-        return parts[0]
-            .substring(
-                0,
-                2,
-            )
-            .toUpperCase();
+    const parts = safeName.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+        return parts[0].substring(0,2,).toUpperCase();
     }
-
-
-    return (
-        parts[0][0] +
-        parts[1][0]
-    ).toUpperCase();
+    return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-
-function formatDate(
-    value,
-) {
+function formatDate(value,) {
     if (!value) {
         return '';
     }
@@ -418,6 +334,417 @@ function extractCollection(
 |--------------------------------------------------------------------------
 */
 
+/*
+|--------------------------------------------------------------------------
+| Realtime / Socket.IO
+|--------------------------------------------------------------------------
+*/
+
+function connectSocket() {
+    if (
+        !token ||
+        typeof io ===
+            'undefined'
+    ) {
+        return;
+    }
+
+
+    if (socket) {
+        socket.disconnect();
+
+        socket =
+            null;
+    }
+
+
+    socket =
+        io({
+            auth: {
+                token,
+            },
+
+            transports: [
+                'websocket',
+                'polling',
+            ],
+
+            reconnection:
+                true,
+
+            reconnectionAttempts:
+                Infinity,
+
+            reconnectionDelay:
+                1000,
+
+            reconnectionDelayMax:
+                5000,
+        });
+
+
+    socket.on(
+        'connect',
+
+        () => {
+            socketConnected =
+                true;
+
+
+            console.log(
+                'Realtime connected:',
+                socket.id,
+            );
+
+
+            if (
+                selectedConversation
+                    ?.id
+            ) {
+                joinConversationRoom(
+                    selectedConversation.id,
+                );
+            }
+        },
+    );
+
+
+    socket.on(
+        'disconnect',
+
+        reason => {
+            socketConnected =
+                false;
+
+
+            console.log(
+                'Realtime disconnected:',
+                reason,
+            );
+        },
+    );
+
+
+    socket.on(
+        'connect_error',
+
+        error => {
+            console.error(
+                'Realtime connection error:',
+                error.message,
+            );
+        },
+    );
+
+
+    socket.on(
+        'conversation:joined',
+
+        data => {
+            joinedConversationId =
+                data
+                    ?.conversationId ??
+                null;
+        },
+    );
+
+
+    socket.on(
+        'message.created',
+
+        message => {
+            handleRealtimeMessage(
+                message,
+            );
+        },
+    );
+
+
+    socket.on(
+        'message.updated',
+
+        message => {
+            handleRealtimeMessageUpdate(
+                message,
+            );
+        },
+    );
+}
+
+
+function disconnectSocket() {
+    if (!socket) {
+        return;
+    }
+
+
+    if (
+        joinedConversationId
+    ) {
+        socket.emit(
+            'conversation:leave',
+            joinedConversationId,
+        );
+    }
+
+
+    socket.disconnect();
+
+    socket =
+        null;
+
+    socketConnected =
+        false;
+
+    joinedConversationId =
+        null;
+}
+
+
+function joinConversationRoom(
+    conversationId,
+) {
+    if (
+        !socket ||
+        !socket.connected ||
+        !conversationId
+    ) {
+        return;
+    }
+
+
+    if (
+        joinedConversationId &&
+        joinedConversationId !==
+            conversationId
+    ) {
+        socket.emit(
+            'conversation:leave',
+            joinedConversationId,
+        );
+    }
+
+
+    socket.emit(
+        'conversation:join',
+        conversationId,
+    );
+
+
+    joinedConversationId =
+        conversationId;
+}
+
+
+function messageAlreadyExists(
+    messageId,
+) {
+    if (
+        !messageId ||
+        !selectedConversation
+    ) {
+        return false;
+    }
+
+
+    const messages =
+        selectedConversation
+            .messages ??
+        [];
+
+
+    return messages.some(
+        message =>
+            message.id ===
+            messageId,
+    );
+}
+
+
+function handleRealtimeMessage(
+    message,
+) {
+    if (
+        !message ||
+        !message.id ||
+        !message.conversationId
+    ) {
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update currently opened conversation
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        selectedConversation
+            ?.id ===
+        message.conversationId
+    ) {
+        if (
+            !messageAlreadyExists(
+                message.id,
+            )
+        ) {
+            if (
+                !Array.isArray(
+                    selectedConversation
+                        .messages,
+                )
+            ) {
+                selectedConversation
+                    .messages =
+                    [];
+            }
+
+
+            selectedConversation
+                .messages
+                .push(
+                    message,
+                );
+
+
+            selectedConversation
+                .lastMessageAt =
+                message.createdAt;
+
+
+            renderMessages();
+        }
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Update conversation list locally
+    |--------------------------------------------------------------------------
+    */
+
+    const conversationIndex =
+        conversations
+            .findIndex(
+                conversation =>
+                    conversation.id ===
+                    message.conversationId,
+            );
+
+
+    if (
+        conversationIndex >=
+        0
+    ) {
+        const conversation =
+            conversations[
+                conversationIndex
+            ];
+
+
+        conversation.lastMessageAt =
+            message.createdAt;
+
+
+        conversation.messages =
+            [
+                message,
+            ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | Move conversation to top
+        |--------------------------------------------------------------------------
+        */
+
+        conversations.splice(
+            conversationIndex,
+            1,
+        );
+
+
+        conversations.unshift(
+            conversation,
+        );
+
+
+        updateConversationCounters();
+
+        renderConversations();
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Unknown/new conversation
+    |--------------------------------------------------------------------------
+    |
+    | An inbound WhatsApp message may create a brand-new conversation.
+    | We don't have its contact details in message.created, so fetch the
+    | conversation collection.
+    |--------------------------------------------------------------------------
+    */
+
+    loadConversations()
+        .catch(
+            error => {
+                console.error(
+                    'Failed to refresh conversations after realtime message:',
+                    error,
+                );
+            },
+        );
+}
+
+
+function handleRealtimeMessageUpdate(
+    updatedMessage,
+) {
+    if (
+        !updatedMessage ||
+        !updatedMessage.id ||
+        !selectedConversation
+    ) {
+        return;
+    }
+
+
+    const messages =
+        selectedConversation
+            .messages ??
+        [];
+
+
+    const index =
+        messages
+            .findIndex(
+                message =>
+                    message.id ===
+                    updatedMessage.id,
+            );
+
+
+    if (
+        index <
+        0
+    ) {
+        return;
+    }
+
+
+    messages[index] = {
+        ...messages[index],
+        ...updatedMessage,
+    };
+
+
+    renderMessages();
+}
+
 element(
     'login-form',
 )
@@ -535,109 +862,35 @@ element(
 
 
                 showApp();
-            } catch (
-                error
-            ) {
-                element(
-                    'login-error',
-                ).textContent =
-                    error.message;
+            } catch (error) {
+                element('login-error',).textContent = error.message;
             } finally {
-                button.disabled =
-                    false;
-
-
-                button.textContent =
-                    'Login';
+                button.disabled = false;
+                button.textContent = 'Login';
             }
         },
     );
 
 
 function logout() {
-    token =
-        null;
-
-
-    selectedConversation =
-        null;
-
-
-    localStorage
-        .removeItem(
-            'bevatel_token',
-        );
-
-
-    localStorage
-        .removeItem(
-            'bevatel_email',
-        );
-
-
-    element(
-        'app-screen',
-    )
-        .classList
-        .add(
-            'hidden',
-        );
-
-
-    element(
-        'login-screen',
-    )
-        .classList
-        .remove(
-            'hidden',
-        );
+    disconnectSocket();
+    token = null;
+    selectedConversation = null;
+    localStorage.removeItem('bevatel_token',);
+    localStorage.removeItem('bevatel_email',);
+    element('app-screen',).classList.add('hidden',);
+    element('login-screen',).classList.remove('hidden',);
 }
 
-
-element(
-    'logout-button',
-)
-    .addEventListener(
-        'click',
-        logout,
-    );
-
-
-/*
-|--------------------------------------------------------------------------
-| App
-|--------------------------------------------------------------------------
-*/
+element('logout-button',).addEventListener('click',logout,);
 
 async function showApp() {
-    element(
-        'login-screen',
-    )
-        .classList
-        .add(
-            'hidden',
-        );
-
-
-    element(
-        'app-screen',
-    )
-        .classList
-        .remove(
-            'hidden',
-        );
-
-
-    element(
-        'current-user-email',
-    ).textContent =
-        currentUserEmail ??
-        'Agent';
-
-
+    element('login-screen',).classList.add('hidden',);
+    element('app-screen',).classList.remove('hidden',);
+    element('current-user-email',).textContent = currentUserEmail ?? 'Agent';
     await refreshAll();
+    connectSocket();
 }
-
 
 async function refreshAll() {
     await Promise
@@ -649,55 +902,22 @@ async function refreshAll() {
 }
 
 
-element(
-    'refresh-button',
-)
-    .addEventListener(
-        'click',
-
+element('refresh-button',)
+    .addEventListener('click',
         async () => {
             await refreshAll();
-
-            toast(
-                'Inbox refreshed',
-                'success',
-            );
+            toast('Inbox refreshed','success',);
         },
     );
-
-
-/*
-|--------------------------------------------------------------------------
-| Channels
-|--------------------------------------------------------------------------
-*/
-
+ 
 async function loadChannels() {
     try {
-        const result =
-            await api(
-                '/meta/accounts',
-            );
-
-
-        channels =
-            extractCollection(
-                result,
-                'accounts',
-            );
-
-
+        const result = await api('/meta/accounts');
+        channels = extractCollection(result,'accounts',);
         renderChannels();
-    } catch (
-        error
-    ) {
-        console.error(
-            error,
-        );
-
-
-        element(
-            'channels-sidebar-list',
+    } catch (error) {
+        console.error(error,);
+        element('channels-sidebar-list',
         ).innerHTML =
             `
                 <div class="sidebar-placeholder">
@@ -708,49 +928,30 @@ async function loadChannels() {
 }
 
 
-function channelIcon(
-    channel,
-) {
-    switch (
-        channel
-    ) {
+function channelIcon(channel,) {
+    switch (channel) {
         case 'WHATSAPP':
             return {
-                text:
-                    'W',
-
-                className:
-                    'whatsapp',
+                text: 'W',
+                className: 'whatsapp',
             };
-
 
         case 'FACEBOOK':
             return {
-                text:
-                    'F',
-
-                className:
-                    'facebook',
+                text: 'F',
+                className: 'facebook',
             };
-
 
         case 'INSTAGRAM':
             return {
-                text:
-                    'I',
-
-                className:
-                    'instagram',
+                text: 'I',
+                className: 'instagram',
             };
-
 
         default:
             return {
-                text:
-                    '#',
-
-                className:
-                    'other',
+                text: '#',
+                className: 'other',
             };
     }
 }
@@ -1031,1125 +1232,366 @@ function updateConversationCounters() {
         unassigned.length;
 
 
-    element(
-        'queue-all-count',
-    ).textContent =
-        conversations.length;
-
-
-    const mine =
-        conversations
-            .filter(
-                conversation =>
-                    Boolean(
-                        conversation
-                            .assignedUserId,
-                    ),
-            );
-
-
-    element(
-        'mine-count',
-    ).textContent =
-        mine.length;
+    element('queue-all-count',).textContent =conversations.length;
+    const mine = conversations.filter(conversation =>Boolean(conversation.assignedUserId,),);
+    element('mine-count',).textContent =mine.length;
 }
 
 
 function getFilteredConversations() {
-    let data =
-        [
-            ...conversations,
-        ];
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Channel
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        selectedChannelId
-    ) {
-        data =
-            data.filter(
-                conversation =>
-                    conversation
-                        .channelAccountId ===
-                    selectedChannelId,
-            );
+    let data =[...conversations,];
+    if (selectedChannelId) {
+        data = data.filter(conversation => conversation.channelAccountId === selectedChannelId,);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Assignment
-    |--------------------------------------------------------------------------
-    */
-
-    if (
-        assignmentFilter ===
-        'unassigned'
-    ) {
-        data =
-            data.filter(
-                conversation =>
-                    !conversation
-                        .assignedUserId,
-            );
+    if (assignmentFilter === 'unassigned') {
+        data = data.filter(conversation =>!conversation.assignedUserId,);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Status
-    |--------------------------------------------------------------------------
-    */
-
-    const status =
-        element(
-            'status-filter',
-        ).value;
-
-
+    const status = element('status-filter',).value;
     if (status) {
-        data =
-            data.filter(
-                conversation =>
-                    conversation
-                        .status ===
-                    status,
-            );
+        data = data.filter(conversation =>conversation.status === status,);
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Search
-    |--------------------------------------------------------------------------
-    */
-
-    const search =
-        element(
-            'conversation-search-input',
-        ).value
-            .trim()
-            .toLowerCase();
-
-
+    const search = element('conversation-search-input',).value.trim().toLowerCase();
     if (search) {
         data =
             data.filter(
                 conversation => {
                     const haystack =
                         [
-                            conversation
-                                .contact
-                                ?.displayName,
-
-                            conversation
-                                .contact
-                                ?.phone,
-
-                            conversation
-                                .subject,
-
-                            conversation
-                                .messages?.[0]
-                                ?.body,
+                            conversation.contact?.displayName,
+                            conversation.contact?.phone,
+                            conversation.subject,
+                            conversation.messages?.[0]?.body,
                         ]
-                            .filter(
-                                Boolean,
-                            )
-                            .join(
-                                ' ',
-                            )
-                            .toLowerCase();
-
-
-                    return haystack
-                        .includes(
-                            search,
-                        );
+                            .filter(Boolean,)
+                            .join(' ',).toLowerCase();
+                    return haystack.includes(search,);
                 },
             );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sort
-    |--------------------------------------------------------------------------
-    */
-
-    const sort =
-        element(
-            'sort-filter',
-        ).value;
-
-
+    const sort = element('sort-filter',).value;
     data.sort(
-        (
-            first,
-            second,
-        ) => {
-            const a =
-                new Date(
-                    first.lastMessageAt ??
-                    first.createdAt,
-                )
-                    .getTime();
-
-
-            const b =
-                new Date(
-                    second.lastMessageAt ??
-                    second.createdAt,
-                )
-                    .getTime();
-
-
-            if (
-                sort ===
-                'oldest'
-            ) {
+        (first,second,) => {
+            const a = new Date(first.lastMessageAt ??first.createdAt,).getTime();
+            const b = new Date(second.lastMessageAt ??second.createdAt,).getTime();
+            if (sort ==='oldest') {
                 return a - b;
             }
-
-
             return b - a;
         },
     );
-
-
     return data;
 }
 
 
 function renderConversations() {
-    const container =
-        element(
-            'conversations-list',
-        );
+    const container = element('conversations-list',);
+    const data = getFilteredConversations();
 
-
-    const data =
-        getFilteredConversations();
-
-
-    if (
-        data.length ===
-        0
-    ) {
+    if (data.length === 0 ) {
         container.innerHTML =
             `
                 <div class="empty-list">
                     No conversations found
                 </div>
             `;
-
         return;
     }
-
 
     container.innerHTML =
         data
             .map(
                 conversation => {
-                    const contact =
-                        conversation
-                            .contact ??
-                        {};
-
-
-                    const name =
-                        contact.displayName ??
-                        contact.phone ??
-                        'Unknown contact';
-
-
-                    const message =
-                        conversation
-                            .messages?.[0]
-                            ?.body ??
-                        conversation
-                            .subject ??
-                        'No messages yet';
-
-
-                    const active =
-                        selectedConversation
-                            ?.id ===
-                        conversation.id;
-
-
+                    const contact = conversation.contact ??{};
+                    const name = contact.displayName ??contact.phone ?? 'Unknown contact';
+                    const message = conversation.messages?.[0]?.body ??conversation.subject ?? 'No messages yet';
+                    const active = selectedConversation?.id === conversation.id;
                     return `
                         <button
-                            class="
-                                conversation-item
-                                ${
-                                    active
-                                        ? 'active'
-                                        : ''
-                                }
-                            "
-                            data-conversation-id="${escapeHtml(
-                                conversation.id,
-                            )}"
+                            class=" conversation-item ${active ? 'active' : '' }"
+                            data-conversation-id="${escapeHtml(conversation.id,)}"
                         >
-
-                            <div
-                                class="conversation-avatar"
-                            >
-                                ${escapeHtml(
-                                    initials(
-                                        name,
-                                    ),
-                                )}
+                            <div class="conversation-avatar">
+                                ${escapeHtml(initials(name,),)}
                             </div>
 
-
-                            <div
-                                class="conversation-content"
-                            >
-
-                                <div
-                                    class="conversation-row"
-                                >
-
-                                    <span
-                                        class="conversation-name"
-                                    >
-                                        ${escapeHtml(
-                                            name,
-                                        )}
+                            <div class="conversation-content">
+                                <div class="conversation-row">
+                                    <span class="conversation-name">
+                                        ${escapeHtml(name,)}
                                     </span>
-
-                                    <span
-                                        class="conversation-time"
-                                    >
-                                        ${escapeHtml(
-                                            formatDate(
-                                                conversation
-                                                    .lastMessageAt ??
-                                                conversation
-                                                    .createdAt,
-                                            ),
-                                        )}
+                                    <span class="conversation-time">
+                                        ${escapeHtml(formatDate(conversation.lastMessageAt ?? conversation.createdAt,))}
                                     </span>
-
                                 </div>
-
-
-                                <div
-                                    class="conversation-preview-row"
-                                >
-
-                                    <span
-                                        class="conversation-channel-mini"
-                                    >
-                                        ↩
+                                <div class="conversation-preview-row" >
+                                    <span class="conversation-channel-mini"> ↩ </span>
+                                    <span class="conversation-preview">
+                                        ${escapeHtml(message,)}
                                     </span>
-
-                                    <span
-                                        class="conversation-preview"
-                                    >
-                                        ${escapeHtml(
-                                            message,
-                                        )}
-                                    </span>
-
                                 </div>
-
                             </div>
-
                         </button>
                     `;
                 },
             )
-            .join(
-                '',
-            );
+            .join('',);
 
 
-    container
-        .querySelectorAll(
-            '.conversation-item',
-        )
+    container.querySelectorAll('.conversation-item',)
         .forEach(
             button => {
                 button
                     .addEventListener(
                         'click',
-
                         () => {
-                            openConversation(
-                                button.dataset
-                                    .conversationId,
-                            );
+                            openConversation(button.dataset.conversationId,);
                         },
                     );
             },
         );
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| Conversation Details
-|--------------------------------------------------------------------------
-*/
-
-async function openConversation(
-    conversationId,
-) {
+async function openConversation(conversationId) {
     try {
-        const result =
-            await api(
-                `/conversations/${conversationId}`,
-            );
-
-
-        selectedConversation =
-            result.data ??
-            result.conversation ??
-            result;
-
-
+        const previousConversationId = selectedConversation?.id;
+        const result = await api(`/conversations/${conversationId}`,);
+        selectedConversation = result.data ?? result.conversation ?? result; 
+        if (previousConversationId && previousConversationId !== selectedConversation.id && socket) {
+            socket.emit('conversation:leave',previousConversationId);
+        }
+        joinConversationRoom(selectedConversation.id);
         renderActiveConversation();
-
-
         renderConversations();
-    } catch (
-        error
-    ) {
-        toast(
-            error.message,
-            'error',
-        );
+    } catch (error) {
+        toast(error.message,'error',);
     }
 }
 
 
 function renderActiveConversation() {
-    if (
-        !selectedConversation
-    ) {
+    if (!selectedConversation) {
         return;
     }
-
-
-    element(
-        'empty-chat',
-    )
-        .classList
-        .add(
-            'hidden',
-        );
-
-
-    element(
-        'active-chat',
-    )
-        .classList
-        .remove(
-            'hidden',
-        );
-
-
-    const contact =
-        selectedConversation
-            .contact ??
-        {};
-
-
-    const name =
-        contact.displayName ??
-        contact.phone ??
-        'Unknown Contact';
-
-
-    const avatar =
-        initials(
-            name,
-        );
-
-
-    element(
-        'chat-contact-name',
-    ).textContent =
-        name;
-
-
-    element(
-        'chat-avatar',
-    ).textContent =
-        avatar;
-
-
-    element(
-        'details-avatar',
-    ).textContent =
-        avatar;
-
-
-    element(
-        'chat-channel',
-    ).textContent =
-        selectedConversation
-            .channel ??
-        '';
-
-
-    element(
-        'chat-contact-phone',
-    ).textContent =
-        contact.phone ??
-        '';
-
-
-    element(
-        'conversation-status',
-    ).value =
-        selectedConversation
-            .status ??
-        'OPEN';
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Details panel
-    |--------------------------------------------------------------------------
-    */
-
-    element(
-        'details-name',
-    ).textContent =
-        name;
-
-
-    element(
-        'details-status',
-    ).textContent =
-        contact.status ??
-        'ACTIVE';
-
-
-    element(
-        'details-phone',
-    ).textContent =
-        contact.phone ??
-        '-';
-
-
-    element(
-        'details-email',
-    ).textContent =
-        contact.email ??
-        '-';
-
-
-    element(
-        'details-company',
-    ).textContent =
-        contact.company ??
-        '-';
-
-
-    element(
-        'details-channel',
-    ).textContent =
-        selectedConversation
-            .channel ??
-        '-';
-
-
+    element('empty-chat',).classList.add('hidden',);
+    element('active-chat',).classList.remove('hidden',);
+    const contact =selectedConversation.contact ??{};
+    const name = contact.displayName ??contact.phone ??'Unknown Contact';
+    const avatar = initials(name,);
+    element('chat-contact-name',).textContent = name;
+    element('chat-avatar',).textContent = avatar;
+    element('details-avatar',).textContent = avatar;
+    element('chat-channel',).textContent = selectedConversation.channel ??'';
+    element('chat-contact-phone',).textContent = contact.phone ?? '';
+    element('conversation-status',).value = selectedConversation.status ?? 'OPEN';
+    element('details-name',).textContent = name;
+    element('details-status',).textContent = contact.status ??'ACTIVE';
+    element('details-phone',).textContent = contact.phone ?? '-';
+    element('details-email',).textContent = contact.email ?? '-';
+    element('details-company',).textContent = contact.company ??'-';
+    element('details-channel',).textContent = selectedConversation .channel ?? '-';
     renderConversationLabels();
-
     renderMessages();
 }
 
-
 function renderConversationLabels() {
-    const container =
-        element(
-            'conversation-labels',
-        );
-
-
-    const items =
-        selectedConversation
-            ?.labels ??
-        [];
-
-
-    if (
-        items.length ===
-        0
-    ) {
-        container.innerHTML =
-            `
-                <span
-                    style="
-                        color:#98a2b3;
-                        font-size:10px;
-                    "
-                >
-                    No labels
-                </span>
-            `;
-
+    const container = element('conversation-labels',);
+    const items = selectedConversation?.labels ??[];
+    if (items.length ===0) {
+        container.innerHTML = ` <span style="color:#98a2b3; font-size:10px; " > No labels</span>`;
         return;
     }
-
-
     container.innerHTML =
         items
             .map(
                 item => {
-                    const label =
-                        item.label ??
-                        item;
-
-
-                    return `
-                        <span
-                            class="conversation-label"
-                        >
-                            ${escapeHtml(
-                                label.name ??
-                                label.title ??
-                                'Label',
-                            )}
-                        </span>
-                    `;
+                    const label = item.label ?? item;
+                    return ` <span class="conversation-label">${escapeHtml(label.name ??label.title ?? 'Label',)} </span>`;
                 },
             )
-            .join(
-                '',
-            );
+            .join('',);
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| Messages
-|--------------------------------------------------------------------------
-*/
-
 function renderMessages() {
-    const container =
-        element(
-            'messages-container',
-        );
-
-
-    const messages =
-        selectedConversation
-            ?.messages ??
-        [];
-
-
-    if (
-        messages.length ===
-        0
-    ) {
+    const container = element('messages-container',);
+    const messages = selectedConversation?.messages ??[];
+    if (messages.length === 0) {
         container.innerHTML =
             `
-                <div
-                    style="
-                        padding:40px;
-                        text-align:center;
-                        color:#98a2b3;
-                        font-size:11px;
-                    "
-                >
+                <div style="padding:40px; text-align:center; color:#98a2b3; font-size:11px;">
                     No messages yet
                 </div>
             `;
-
         return;
     }
-
 
     container.innerHTML =
         messages
             .map(
                 message => {
-                    const direction =
-                        message.direction ===
-                        'OUTBOUND'
-                            ? 'outbound'
-                            : 'inbound';
-
-
+                    const direction = message.direction === 'OUTBOUND' ? 'outbound' : 'inbound';
                     return `
-                        <div
-                            class="
-                                message-row
-                                ${direction}
-                            "
-                        >
-
-                            <div
-                                class="message-bubble"
-                            >
-
-                                <div
-                                    class="message-text"
-                                >
-                                    ${escapeHtml(
-                                        message.body ??
-                                        `[${message.type}]`,
-                                    )}
+                        <div class=" message-row ${direction}">
+                            <div class="message-bubble">
+                                <divclass="message-text">
+                                    ${escapeHtml(message.body ??`[${message.type}]`,)}
                                 </div>
-
-                                <div
-                                    class="message-meta"
-                                >
-
+                                <div class="message-meta">
                                     <span>
-                                        ${escapeHtml(
-                                            formatMessageTime(
-                                                message.createdAt,
-                                            ),
-                                        )}
+                                        ${escapeHtml(formatMessageTime(message.createdAt,),)}
                                     </span>
-
                                     ${
                                         direction ===
                                         'outbound'
                                             ? `
-                                                <span
-                                                    class="message-status"
-                                                >
-                                                    ${getMessageStatusIcon(
-                                                        message.status,
-                                                    )}
+                                                <span class="message-status">
+                                                    ${getMessageStatusIcon(message.status,)}
                                                 </span>
                                             `
                                             : ''
                                     }
-
                                 </div>
-
                             </div>
-
                         </div>
                     `;
                 },
             )
-            .join(
-                '',
-            );
-
-
-    container.scrollTop =
-        container.scrollHeight;
+            .join('',);
+    container.scrollTop = container.scrollHeight;
 }
 
 
-function getMessageStatusIcon(
-    status,
-) {
-    switch (
-        status
-    ) {
-        case 'READ':
-            return '✓✓';
-
+function getMessageStatusIcon(status,) {
+    switch (status) {
+        case 'READ': 
+        return '✓✓';
         case 'DELIVERED':
             return '✓✓';
-
         case 'SENT':
             return '✓';
-
         case 'FAILED':
             return '⚠';
-
         case 'QUEUED':
             return '◷';
-
         default:
             return '';
     }
 }
 
-
-/*
-|--------------------------------------------------------------------------
-| Send Message
-|--------------------------------------------------------------------------
-*/
-
-element(
-    'message-form',
-)
-    .addEventListener(
-        'submit',
-
+element('message-form',)
+    .addEventListener('submit',
         async event => {
             event.preventDefault();
-
-
-            if (
-                !selectedConversation
-            ) {
+            if (!selectedConversation) {
                 return;
             }
-
-
-            const input =
-                element(
-                    'message-input',
-                );
-
-
-            const body =
-                input.value
-                    .trim();
-
-
+            const input = element('message-input',);
+            const body = input.value.trim();
             if (!body) {
                 return;
             }
-
-
-            const button =
-                element(
-                    'send-message-button',
-                );
-
-
-            button.disabled =
-                true;
-
-
-            input.disabled =
-                true;
-
-
+            const button = element('send-message-button',);
+            button.disabled = true;
+            input.disabled = true;
             try {
-                await api(
-                    `/meta/conversations/${selectedConversation.id}/messages`,
+                await api(`/meta/conversations/${selectedConversation.id}/messages`,
                     {
-                        method:
-                            'POST',
-
-                        body:
-                            JSON.stringify({
-                                type:
-                                    'TEXT',
-
+                        method: 'POST',
+                        body: JSON.stringify({
+                                type: 'TEXT',
                                 body,
                             }),
                     },
                 );
-
-
-                input.value =
-                    '';
-
-
-                await openConversation(
-                    selectedConversation.id,
-                );
-
-
+                input.value = '';
+                await openConversation(selectedConversation.id,);
                 await loadConversations();
-
-
-                toast(
-                    'Message sent',
-                    'success',
-                );
-            } catch (
-                error
-            ) {
-                toast(
-                    error.message,
-                    'error',
-                );
+                toast('Message sent','success',);
+            } catch (error) {
+                toast(error.message,'error',);
             } finally {
-                button.disabled =
-                    false;
-
-
-                input.disabled =
-                    false;
-
-
+                button.disabled = false;
+                input.disabled = false;
                 input.focus();
             }
         },
     );
 
 
-/*
-|--------------------------------------------------------------------------
-| Search
-|--------------------------------------------------------------------------
-*/
-
 let searchTimer;
-
-
-element(
-    'conversation-search-input',
-)
+element('conversation-search-input',)
     .addEventListener(
         'input',
-
         () => {
-            clearTimeout(
-                searchTimer,
-            );
-
-
-            searchTimer =
-                setTimeout(
-                    renderConversations,
-                    250,
-                );
+            clearTimeout(searchTimer,);
+            searchTimer = setTimeout(renderConversations,250,);
         },
     );
 
+element('status-filter',).addEventListener('change',renderConversations,);
+element('sort-filter',).addEventListener('change',renderConversations,);
 
-/*
-|--------------------------------------------------------------------------
-| Status / Sort Filters
-|--------------------------------------------------------------------------
-*/
-
-element(
-    'status-filter',
-)
-    .addEventListener(
-        'change',
-        renderConversations,
-    );
-
-
-element(
-    'sort-filter',
-)
-    .addEventListener(
-        'change',
-        renderConversations,
-    );
-
-
-/*
-|--------------------------------------------------------------------------
-| Assignment Tabs
-|--------------------------------------------------------------------------
-*/
-
-document
-    .querySelectorAll(
-        '.assignment-tab',
-    )
+document.querySelectorAll('.assignment-tab',)
     .forEach(
         button => {
-            button
-                .addEventListener(
-                    'click',
-
+            button.addEventListener('click',
                     () => {
-                        assignmentFilter =
-                            button.dataset
-                                .assignmentFilter;
-
-
-                        document
-                            .querySelectorAll(
-                                '.assignment-tab',
-                            )
-                            .forEach(
-                                item =>
-                                    item
-                                        .classList
-                                        .remove(
-                                            'active',
-                                        ),
-                            );
-
-
-                        button
-                            .classList
-                            .add(
-                                'active',
-                            );
-
-
+                        assignmentFilter = button.dataset.assignmentFilter;
+                        document.querySelectorAll('.assignment-tab',).forEach(item => item.classList.remove('active',),);
+                        button.classList.add('active',);
                         renderConversations();
                     },
                 );
         },
     );
 
-
-/*
-|--------------------------------------------------------------------------
-| Main Sidebar Filters
-|--------------------------------------------------------------------------
-*/
-
-document
-    .querySelectorAll(
-        '.sidebar-item',
-    )
+document.querySelectorAll('.sidebar-item',)
     .forEach(
         button => {
             button
                 .addEventListener(
                     'click',
-
                     () => {
-                        sidebarFilter =
-                            button.dataset
-                                .inboxFilter;
-
-
-                        document
-                            .querySelectorAll(
-                                '.sidebar-item',
-                            )
-                            .forEach(
-                                item =>
-                                    item
-                                        .classList
-                                        .remove(
-                                            'active',
-                                        ),
-                            );
-
-
-                        button
-                            .classList
-                            .add(
-                                'active',
-                            );
-
-
-                        /*
-                        | For now only "all" is connected to API.
-                        |
-                        | Mentions, unattended and chatbot should later
-                        | have backend filters/endpoints.
-                        */
-
-                        selectedChannelId =
-                            null;
-
-
-                        document
-                            .querySelectorAll(
-                                '.channel-sidebar-item',
-                            )
-                            .forEach(
-                                item =>
-                                    item
-                                        .classList
-                                        .remove(
-                                            'active',
-                                        ),
-                            );
-
-
-                        element(
-                            'selected-channel-name',
-                        ).textContent =
-                            button
-                                .textContent
-                                .trim();
-
-
-                        element(
-                            'selected-channel-type',
-                        ).textContent =
-                            'All';
-
-
+                        sidebarFilter = button.dataset.inboxFilter;
+                        document.querySelectorAll('.sidebar-item',).forEach(item => item.classList.remove('active',),);
+                        button.classList.add('active',);
+                        selectedChannelId = null;
+                        document.querySelectorAll('.channel-sidebar-item',).forEach(item =>item.classList.remove('active',),);
+                        element('selected-channel-name',).textContent = button.textContent.trim();
+                        element('selected-channel-type',).textContent = 'All';
                         renderConversations();
                     },
                 );
         },
     );
 
-
-/*
-|--------------------------------------------------------------------------
-| Contact Details
-|--------------------------------------------------------------------------
-*/
-
-element(
-    'contact-info-button',
-)
+element('contact-info-button',)
     .addEventListener(
         'click',
-
         () => {
-            element(
-                'contact-details-panel',
-            )
-                .classList
-                .toggle(
-                    'hidden',
-                );
+            element('contact-details-panel',).classList.toggle('hidden',);
         },
     );
 
 
-element(
-    'close-contact-info',
-)
+element('close-contact-info',)
     .addEventListener(
         'click',
-
         () => {
-            element(
-                'contact-details-panel',
-            )
-                .classList
-                .add(
-                    'hidden',
-                );
+            element('contact-details-panel',).classList.add('hidden',);
         },
     );
 
-
-/*
-|--------------------------------------------------------------------------
-| Filter Toggle
-|--------------------------------------------------------------------------
-*/
-
-element(
-    'filter-toggle',
-)
-    .addEventListener(
+element('filter-toggle',)
+.addEventListener(
         'click',
-
         () => {
-            element(
-                'conversation-filters',
-            )
-                .classList
-                .toggle(
-                    'hidden',
-                );
+            element('conversation-filters',).classList.toggle('hidden',);
         },
     );
-
-
-/*
-|--------------------------------------------------------------------------
-| Start Existing Session
-|--------------------------------------------------------------------------
-*/
-
 if (token) {
     showApp();
 }
