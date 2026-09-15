@@ -72,11 +72,13 @@ ssh root@157.173.108.167
 HDGV17x2Y8qZxGzapMe0632p
 
 su - deploy
-cd /var/www/apps/bevatel/bevatel
+cd /var/www/apps/bevatel
  
+mysql -h 127.0.0.1 -P 3306 -u bevatel -p bevatel
+password = bevatel_2026_09_14
 
 # Save the untracked VPS files temporarily
-git stash push -u -m "VPS files before main pull"
+git stash push -u -m "Save the untracked VPS files temporarily"
 
 # Verify clean
 git status
@@ -100,10 +102,18 @@ npx tsc --noEmit
 pm2 restart bevatel-api --update-env
 pm2 restart bevatel-api
 pm2 status
+npx tsx test-prisma.ts
 
+pm2 flush
+pm2 logs bevatel-api
+
+test endpoint
 curl http://127.0.0.1:4000/health
 
-pm2 restart bevatel-api --update-env
+ time curl \
+  "http://127.0.0.1:4000/api/auth/register-organization/slug?name=TApo"
+
+
 pm2 status
 pm2 logs bevatel-api --lines 100
 
@@ -119,6 +129,9 @@ npx tsx \
   
 
 pm2 restart bevatel-api
+
+
+mysql -h 127.0.0.1 -P 3306 -u bevatel -p bevatel
 
 OWNER_ORGANIZATION_NAME="Bevatel" \
 OWNER_ORGANIZATION_SLUG="bevatel" \
@@ -154,4 +167,83 @@ FROM Organization
 WHERE slug = 'bevatel';
 
 
+for show logs files
+pm2 logs bevatel-api --lines 150 --nostream
 
+
+
+
+
+
+register-organization
+5d8362a6-8d44-4c64-a7a1-856d293de015
+mohamedtapo@gmail.com
+123456789
+
+
+NODE_ENV=production
+PORT=4000
+# ============================================================
+# DATABASE
+# ============================================================
+
+DATABASE_URL="mysql://bevatel:bevatel_2026_09_14@localhost:3306/bevatel"
+DATABASE_HOST="localhost"
+DATABASE_PORT=3306
+DATABASE_USER="bevatel"
+DATABASE_PASSWORD="bevatel_2026_09_14"
+DATABASE_NAME="bevatel"
+
+# ============================================================
+# AUTH
+# ============================================================
+
+JWT_SECRET="ogwdGznA8TIevW/4Gc1da9w51AUs0nUgQgxNMI/TQF8jqC4K6kOYcflN7DkjE9Ou9aYjBvCH9BUDeiiULerzIA=="
+JWT_EXPIRES_IN="7d"
+
+INTERNAL_SERVICE_TOKEN="CHANGE_THIS_TO_A_LONG_RANDOM_INTERNAL_TOKEN"
+
+# ============================================================
+# REDIS
+# ============================================================   
+
+REDIS_HOST="127.0.0.1"
+REDIS_PORT=6379   
+
+# ============================================================
+# META / WHATSAPP
+# ============================================================
+
+META_GRAPH_VERSION="v26.0"
+
+# Get these from:
+# Meta Developers -> App Settings -> Basic
+META_APP_ID=""
+META_APP_SECRET="239191a7ef95dba2ec38e2b19c998685"
+
+# This is OUR secret verification string.
+# Enter exactly the same value in Meta webhook configuration.
+META_VERIFY_TOKEN="bevatel_meta_verify_very_secret_2026"
+
+# true for real Meta webhook requests.
+# META_VERIFY_SIGNATURE="true"
+META_VERIFY_SIGNATURE="false"
+
+# ============================================================
+# WHATSAPP BUSINESS
+# ============================================================
+
+WHATSAPP_BUSINESS_ACCOUNT_ID="1582307469113882"
+
+WHATSAPP_PHONE_NUMBER_ID="667892493081312"
+
+# Put the Meta access token you pasted here.
+# Do not commit this file to Git.
+WHATSAPP_ACCESS_TOKEN="EAAMFDGCMDDABQrFZA8sZBEfY86r3YlmY8g1Rx4HwNbbRCCJdXOp3gczjwJjfko2lNtNStyNQP0FrDlWQt5YJSL7P5rSkolZBZAdjiJNEdcXnZCZAltEhgykTF29jgyBco87vBKvEcw6E0AMRqGOYagNvpChpRAZBuoQwBEpvXgKSf1SFZATriosZCRXu79zGHhj8oMgZDZD"
+
+# ============================================================
+# OTHER META CHANNELS - LATER
+# ============================================================
+
+FACEBOOK_PAGE_ID=""
+INSTAGRAM_ACCOUNT_ID=""
