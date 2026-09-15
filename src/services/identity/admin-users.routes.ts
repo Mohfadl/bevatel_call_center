@@ -121,7 +121,7 @@ router.patch('/:userId/role',
       const targetUser =
         await prisma.user.findFirst({
           where: {
-            id: userId,
+            id: String(userId),
             organizationId: request.user.organizationId,
           },
         });

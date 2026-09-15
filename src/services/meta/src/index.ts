@@ -8,12 +8,12 @@ import axios from 'axios';
 import { Queue } from 'bullmq';
 import { z } from 'zod';
 
-import { prisma } from '../../../shared/prisma';
+import { prisma } from '../../../../shared/prisma';
 
 import {
   AuthRequest,
   authMiddleware,
-} from '../../../shared/auth';
+} from '../../../../shared/auth';
 
 import {
   sendWhatsAppText,
@@ -27,25 +27,11 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 const connection = {
-  host:
-    process.env.REDIS_HOST ??
-    '127.0.0.1',
-
-  port:
-    Number(
-      process.env.REDIS_PORT ??
-      6379,
-    ),
+  host: process.env.REDIS_HOST ?? '127.0.0.1',
+  port: Number(process.env.REDIS_PORT ??6379,),
 };
 
-const metaQueue =
-  new Queue(
-    'meta-webhooks',
-    {
-      connection,
-    },
-  );
-
+const metaQueue = new Queue('meta-webhooks',{connection,},);
 app.get('/health', (_request, response) => {
   response.json({
     success: true,
@@ -66,40 +52,25 @@ app.post(
       ]),
 
       name: z.string(),
-
-      externalAccountId:
-        z.string().optional(),
-
-      phoneNumberId:
-        z.string().optional(),
-
-      pageId:
-        z.string().optional(),
-
-      instagramAccountId:
-        z.string().optional(),
-
-      accessToken:
-        z.string(),
+      externalAccountId: z.string().optional(),
+      phoneNumberId: z.string().optional(),
+      pageId: z.string().optional(),
+      instagramAccountId: z.string().optional(),
+      accessToken: z.string(),
     });
 
-    const parsed =
-      schema.safeParse(request.body);
-
+    const parsed = schema.safeParse(request.body);
     if (!parsed.success) {
       return response.status(422).json({
         success: false,
-        errors:
-          parsed.error.flatten(),
+        errors: parsed.error.flatten(),
       });
     }
 
     const account =
       await prisma.channelAccount.create({
         data: {
-          organizationId:
-            request.user!.organizationId,
-
+          organizationId: request.user!.organizationId,
           ...parsed.data,
         },
       });
@@ -108,9 +79,7 @@ app.post(
       success: true,
       data: {
         ...account,
-
-        accessToken:
-          undefined,
+        accessToken: undefined,
       },
     });
   },
@@ -119,7 +88,6 @@ app.post(
 app.get(
   '/meta/accounts',
   authMiddleware,
-
   async (request: AuthRequest, response) => {
     const accounts =
       await prisma.channelAccount.findMany({
@@ -148,52 +116,27 @@ app.get(
   },
 );
 
-/*
-|--------------------------------------------------------------------------
-| META WEBHOOK VERIFICATION
-|--------------------------------------------------------------------------
-*/
 
-app.get(
-  '/webhooks/meta',
+app.get('/webhooks/meta',
+
   (request, response) => {
-    const mode =
-      request.query['hub.mode'];
-
-    const verifyToken =
-      request.query[
-        'hub.verify_token'
-      ];
-
-    const challenge =
-      request.query[
-        'hub.challenge'
-      ];
-
-    if (
-      mode === 'subscribe' &&
-      verifyToken ===
-        process.env.META_VERIFY_TOKEN
-    ) {
+    const mode = request.query['hub.mode'];
+    const verifyToken = request.query['hub.verify_token'];
+    const challenge = request.query['hub.challenge'];
+    if (mode === 'subscribe' && verifyToken === process.env.META_VERIFY_TOKEN ) {
       return response
         .status(200)
         .send(challenge);
     }
-
     return response.sendStatus(403);
   },
 );
+ 
 
-/*
-|--------------------------------------------------------------------------
-| META WEBHOOK
-|--------------------------------------------------------------------------
-*/
+app.post('/webhooks/meta',
 
-app.post(
-  '/webhooks/meta',
   async (request, response) => {
-    const receipt =
+    const receipt = 
       await prisma.webhookReceipt.create({
         data: {
           source: 'META',
@@ -203,13 +146,9 @@ app.post(
 
     await metaQueue.add(
       'meta-event',
-
       {
-        receiptId:
-          receipt.id,
-
-        payload:
-          request.body,
+        receiptId: receipt.id,
+        payload: request.body,
       },
 
       {
@@ -231,29 +170,22 @@ app.post(
     response,
   ) => {
     const schema = z.object({
-      text:
-        z.string().min(1),
+      text: z.string().min(1),
     });
 
-    const parsed =
-      schema.safeParse(request.body);
-
+    const parsed = schema.safeParse(request.body);
     if (!parsed.success) {
       return response.status(422).json({
         success: false,
-        errors:
-          parsed.error.flatten(),
+        errors: parsed.error.flatten(),
       });
     }
 
     const conversation =
       await prisma.conversation.findFirst({
         where: {
-          id:
-            request.params.conversationId,
-
-          organizationId:
-            request.user!.organizationId,
+          id: String(request.params.conversationId),
+          organizationId: request.user!.organizationId,
         },
 
         include: {
@@ -262,7 +194,6 @@ app.post(
               identities: true,
             },
           },
-
           channelAccount: true,
         },
       });
@@ -281,56 +212,38 @@ app.post(
       });
     }
 
-    const identity =
-      conversation.contact.identities.find(
-        identity => identity.channel === 'WHATSAPP',
-      );
-
+    const identity = conversation.contact.identities.find(identity => identity.channel === 'WHATSAPP',);
     if (!identity) {
       return response.status(422).json({
         success: false,
-        message:
-          'Contact has no WhatsApp identity',
+        message: 'Contact has no WhatsApp identity',
       });
     }
 
     if (!conversation.channelAccount) {
       return response.status(422).json({
         success: false,
-        message:
-          'Conversation has no channel account',
+        message: 'Conversation has no channel account',
       });
     }
 
-    const phoneNumberId =
-      conversation.channelAccount
-        .phoneNumberId;
-
+    const phoneNumberId = conversation.channelAccount.phoneNumberId;
     if (!phoneNumberId) {
       return response.status(422).json({
         success: false,
-        message:
-          'WhatsApp phoneNumberId missing',
+        message: 'WhatsApp phoneNumberId missing',
       });
     }
 
-    const result =
+    const result = 
       await sendWhatsAppText({
         phoneNumberId,
-
-        accessToken:
-          conversation.channelAccount
-            .accessToken,
-
-        to:identity.externalId,
-
-        text:
-          parsed.data.text,
+        accessToken: conversation.channelAccount.accessToken,
+        to: identity.externalId,
+        text: parsed.data.text,
       });
 
-    const externalMessageId =
-      result?.messages?.[0]?.id;
-
+    const externalMessageId = result?.messages?.[0]?.id;
     const message =
       await prisma.message.create({
         data: {
@@ -349,28 +262,20 @@ app.post(
 
     await prisma.conversation.update({
       where: {
-        id:conversation.id,
+        id: conversation.id,
       },
 
       data: {
-        lastMessageAt:
-          message.createdAt,
+        lastMessageAt: message.createdAt,
       },
     });
 
     await prisma.conversationEvent.create({
       data: {
-        organizationId:
-          request.user!.organizationId,
-
-        conversationId:
-          conversation.id,
-
-        actorUserId:
-          request.user!.id,
-
-        type:
-          'MESSAGE_SENT',
+        organizationId: request.user!.organizationId,
+        conversationId: conversation.id,
+        actorUserId: request.user!.id,
+        type: 'MESSAGE_SENT',
       },
     });
 
@@ -381,12 +286,8 @@ app.post(
   },
 );
 
-const port =
-  Number(process.env.META_PORT) ||
-  4004;
+const port = Number(process.env.META_PORT) || 4004;
 
 app.listen(port, () => {
-  console.log(
-    `Meta service running on http://localhost:${port}`,
-  );
+  console.log(`Meta service running on http://localhost:${port}`,);
 });

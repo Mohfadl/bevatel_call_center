@@ -15,13 +15,8 @@ import {
   instagramProvider,
 } from './instagram.provider';
 
-export function getMetaProvider(
-  channel:
-    MetaChannel,
-): MetaProvider {
-  switch (
-    channel
-  ) {
+export function getMetaProvider(channel: MetaChannel,): MetaProvider {
+  switch (channel) {
     case 'WHATSAPP':
       return whatsappProvider;
 
@@ -32,8 +27,6 @@ export function getMetaProvider(
       return instagramProvider;
 
     default:
-      throw new Error(
-        `Unsupported Meta channel: ${channel}`,
-      );
+      throw new Error(`Unsupported Meta channel: ${channel}`,);
   }
 }

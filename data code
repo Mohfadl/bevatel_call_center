@@ -76,16 +76,23 @@ ssh root@157.173.108.167
 HDGV17x2Y8qZxGzapMe0632p
 
 su - deploy
-cd /var/www/apps/bevatel
+cd /var/www/apps/bevatel/bevatel
 
+# after update code use below codes commands
+npm ci
+npx prisma generate
+npx tsc --noEmit
+pm2 restart bevatel-api --update-env
+pm2 restart bevatel-api
+pm2 status
+
+curl http://127.0.0.1:4000/health
 
 
 sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u deploy --hp /home/deploy
 
-pm2 restart bevatel-api
 
-
-cd /var/www/apps/bevatel
+ 
 
 npx tsx \
   scripts/reset-user-password.ts \
