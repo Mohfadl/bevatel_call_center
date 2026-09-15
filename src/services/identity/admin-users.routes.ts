@@ -18,23 +18,11 @@ import {
 
 const router = Router();
 
-const changeRoleSchema =
-  z.object({
-    role: z.enum([
-        'SUPER_ADMIN',
-        'ADMIN',
-        'SUPERVISOR',
-        'AGENT',
-      ]),
-  });
+const changeRoleSchema = z.object({role: z.enum(['SUPER_ADMIN','ADMIN','SUPERVISOR','AGENT',]),});
 
 router.get('/',
   authMiddleware,
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-    'SUPERVISOR',
-  ),
+  allowRoles('SUPER_ADMIN','ADMIN','SUPERVISOR',),
   async (
     request: AuthRequest,
     response: Response,
@@ -67,7 +55,6 @@ router.get('/',
             createdAt: true,
             updatedAt: true,
           },
-
           orderBy: {
             createdAt: 'desc',
           },
@@ -89,6 +76,7 @@ router.get('/',
 router.patch('/:userId/role',
   authMiddleware,
   allowRoles('SUPER_ADMIN','ADMIN',),
+
   async (
     request: AuthRequest,
     response: Response,
@@ -135,8 +123,8 @@ router.patch('/:userId/role',
             code: 'USER_NOT_FOUND',
           });
       }
-
-      if (request.user.role === 'ADMIN' && targetUser.role === 'SUPER_ADMIN' ) {
+ 
+      if (request.user.role ==='ADMIN' &&targetUser.role ==='SUPER_ADMIN') {
         return response
           .status(403)
           .json({
@@ -145,8 +133,8 @@ router.patch('/:userId/role',
             code: 'FORBIDDEN',
           });
       }
-
-      if (parsed.data.role === 'SUPER_ADMIN' && request.user.role !== 'SUPER_ADMIN') {
+ 
+      if (parsed.data.role ==='SUPER_ADMIN' &&request.user.role !=='SUPER_ADMIN') {
         return response
           .status(403)
           .json({
@@ -154,7 +142,7 @@ router.patch('/:userId/role',
             message: 'Only a Super Admin can assign the Super Admin role.',
             code: 'FORBIDDEN',
           });
-      }
+      } 
 
       if (targetUser.id ===request.user.id) {
         return response
@@ -169,11 +157,11 @@ router.patch('/:userId/role',
       const updatedUser =
         await prisma.user.update({
           where: {
-            id:targetUser.id,
+            id: targetUser.id,
           },
 
           data: {
-            role:parsed.data.role,
+            role: parsed.data.role,
           },
 
           select: {
