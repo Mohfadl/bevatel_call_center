@@ -5,7 +5,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import bcrypt from 'bcryptjs';
-import { z } from 'zod';
+import { string, z } from 'zod';
 
 import { prisma } from '../../../../shared/prisma';
 
@@ -38,7 +38,6 @@ app.post('/auth/login', async (request, response) => {
   });
 
   const parsed = schema.safeParse(request.body);
-
   if (!parsed.success) {
     return response.status(422).json({
       success: false,
@@ -89,10 +88,8 @@ app.post('/auth/login', async (request, response) => {
 
   return response.json({
     success: true,
-
     data: {
       accessToken: token,
-
       user: {
         id: user.id,
         organizationId: user.organizationId,
@@ -108,11 +105,7 @@ app.post('/auth/login', async (request, response) => {
 app.get(
   '/admin/users',
   authMiddleware,
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-    'SUPERVISOR',
-  ),
+  allowRoles('SUPER_ADMIN','ADMIN','SUPERVISOR',),
 
   async (request: AuthRequest, response) => {
     const users = await prisma.user.findMany({
@@ -141,30 +134,19 @@ app.get(
   },
 );
 
-app.post(
-  '/admin/users',
+app.post('/admin/users',
   authMiddleware,
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-  ),
+  allowRoles('SUPER_ADMIN','ADMIN',),
 
   async (request: AuthRequest, response) => {
     const schema = z.object({
       name: z.string().min(2),
       email: z.string().email(),
-
       password: z.string().min(8),
-
-      role: z.enum([
-        'ADMIN',
-        'SUPERVISOR',
-        'AGENT',
-      ]),
+      role: z.enum(['ADMIN','SUPERVISOR','AGENT',]),
     });
 
     const parsed = schema.safeParse(request.body);
-
     if (!parsed.success) {
       return response.status(422).json({
         success: false,
@@ -175,9 +157,7 @@ app.post(
     const existingUser =
       await prisma.user.findFirst({
         where: {
-          organizationId:
-            request.user!.organizationId,
-
+          organizationId: request.user!.organizationId,
           email: parsed.data.email,
         },
       });
@@ -189,21 +169,13 @@ app.post(
       });
     }
 
-    const passwordHash = await bcrypt.hash(
-      parsed.data.password,
-      12,
-    );
-
+    const passwordHash = await bcrypt.hash(parsed.data.password,12,);
     const user = await prisma.user.create({
       data: {
-        organizationId:
-          request.user!.organizationId,
-
+        organizationId: request.user!.organizationId,
         name: parsed.data.name,
         email: parsed.data.email,
-
         passwordHash,
-
         role: parsed.data.role,
       },
 
@@ -224,24 +196,16 @@ app.post(
   },
 );
 
-app.patch(
-  '/admin/users/:id/status',
+app.patch('/admin/users/:id/status',
   authMiddleware,
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-  ),
+  allowRoles('SUPER_ADMIN','ADMIN',),
 
   async (request: AuthRequest, response) => {
     const schema = z.object({
-      status: z.enum([
-        'ACTIVE',
-        'SUSPENDED',
-      ]),
+      status: z.enum(['ACTIVE','SUSPENDED',]),
     });
 
     const parsed = schema.safeParse(request.body);
-
     if (!parsed.success) {
       return response.status(422).json({
         success: false,
@@ -251,10 +215,8 @@ app.patch(
 
     const user = await prisma.user.findFirst({
       where: {
-        id: request.params.id,
-
-        organizationId:
-          request.user!.organizationId,
+        id: String(request.params.id),
+        organizationId: request.user!.organizationId,
       },
     });
 
@@ -290,11 +252,7 @@ app.patch(
   },
 );
 
-const port =
-  Number(process.env.IDENTITY_PORT) || 4001;
-
+const port = Number(process.env.IDENTITY_PORT) || 4001;
 app.listen(port, () => {
-  console.log(
-    `Identity service running on http://localhost:${port}`,
-  );
+  console.log(`Identity service running on http://localhost:${port}`,);
 });

@@ -3,7 +3,7 @@ import 'dotenv/config';
 import axios from 'axios';
 import { Worker } from 'bullmq';
 
-import { prisma } from '../../../shared/prisma';
+import { prisma } from '../../../../shared/prisma';
 
 const connection = {
   host:

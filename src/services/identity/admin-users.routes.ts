@@ -16,351 +16,175 @@ import {
   type AuthRequest,
 } from '../../../shared/auth';
 
-const router =
-  Router();
+const router = Router();
 
-const changeRoleSchema =
-  z.object({
-    role:
-      z.enum([
-        'SUPER_ADMIN',
-        'ADMIN',
-        'SUPERVISOR',
-        'AGENT',
-      ]),
-  });
+const changeRoleSchema = z.object({role: z.enum(['SUPER_ADMIN','ADMIN','SUPERVISOR','AGENT',]),});
 
-router.get(
-  '/',
-
+router.get('/',
   authMiddleware,
-
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-    'SUPERVISOR',
-  ),
-
+  allowRoles('SUPER_ADMIN','ADMIN','SUPERVISOR',),
   async (
-    request:
-      AuthRequest,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: AuthRequest,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      if (
-        !request.user
-      ) {
+      if (!request.user) {
         return response
           .status(401)
           .json({
-            success:
-              false,
-
-            message:
-              'Authentication is required.',
-
-            code:
-              'UNAUTHORIZED',
+            success: false,
+            message: 'Authentication is required.',
+            code: 'UNAUTHORIZED',
           });
       }
 
       const users =
         await prisma.user.findMany({
           where: {
-            organizationId:
-              request.user.organizationId,
+            organizationId: request.user.organizationId,
           },
 
           select: {
-            id:
-              true,
-
-            organizationId:
-              true,
-
-            name:
-              true,
-
-            email:
-              true,
-
-            role:
-              true,
-
-            status:
-              true,
-
-            createdAt:
-              true,
-
-            updatedAt:
-              true,
+            id: true,
+            organizationId: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
           },
-
           orderBy: {
-            createdAt:
-              'desc',
+            createdAt: 'desc',
           },
         });
 
       return response
         .status(200)
         .json({
-          success:
-            true,
-
-          data:
-            users,
+          success: true,
+          data: users,
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'List users error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('List users error:',error,);
+      return next(error,);
     }
   },
 );
 
-router.patch(
-  '/:userId/role',
-
+router.patch('/:userId/role',
   authMiddleware,
-
-  allowRoles(
-    'SUPER_ADMIN',
-    'ADMIN',
-  ),
+  allowRoles('SUPER_ADMIN','ADMIN',),
 
   async (
-    request:
-      AuthRequest,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: AuthRequest,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      if (
-        !request.user
-      ) {
+      if (!request.user) {
         return response
           .status(401)
           .json({
-            success:
-              false,
-
-            message:
-              'Authentication is required.',
-
-            code:
-              'UNAUTHORIZED',
+            success: false,
+            message: 'Authentication is required.',
+            code: 'UNAUTHORIZED',
           });
       }
 
-      const parsed =
-        changeRoleSchema.safeParse(
-          request.body,
-        );
-
-      if (
-        !parsed.success
-      ) {
+      const parsed = changeRoleSchema.safeParse(request.body,);
+      if (!parsed.success) {
         return response
           .status(422)
           .json({
-            success:
-              false,
-
-            message:
-              'Invalid role.',
-
-            code:
-              'VALIDATION_ERROR',
-
-            errors:
-              parsed.error.flatten(),
+            success: false,
+            message: 'Invalid role.',
+            code: 'VALIDATION_ERROR',
+            errors: parsed.error.flatten(),
           });
       }
 
-      const userId =
-        request.params.userId;
-
+      const userId = request.params.userId;
       const targetUser =
         await prisma.user.findFirst({
           where: {
-            id:
-              userId,
-
-            organizationId:
-              request.user.organizationId,
+            id: String(userId),
+            organizationId: request.user.organizationId,
           },
         });
 
-      if (
-        !targetUser
-      ) {
+      if (!targetUser) {
         return response
           .status(404)
           .json({
-            success:
-              false,
-
-            message:
-              'User was not found.',
-
-            code:
-              'USER_NOT_FOUND',
+            success: false,
+            message: 'User was not found.',
+            code: 'USER_NOT_FOUND',
           });
       }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Admin cannot manage Super Admin
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        request.user.role ===
-          'ADMIN' &&
-        targetUser.role ===
-          'SUPER_ADMIN'
-      ) {
+ 
+      if (request.user.role ==='ADMIN' &&targetUser.role ==='SUPER_ADMIN') {
         return response
           .status(403)
           .json({
-            success:
-              false,
-
-            message:
-              'Admin cannot change a Super Admin role.',
-
-            code:
-              'FORBIDDEN',
+            success: false,
+            message: 'Admin cannot change a Super Admin role.',
+            code: 'FORBIDDEN',
           });
       }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Only Super Admin may assign SUPER_ADMIN
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        parsed.data.role ===
-          'SUPER_ADMIN' &&
-        request.user.role !==
-          'SUPER_ADMIN'
-      ) {
+ 
+      if (parsed.data.role ==='SUPER_ADMIN' &&request.user.role !=='SUPER_ADMIN') {
         return response
           .status(403)
           .json({
-            success:
-              false,
-
-            message:
-              'Only a Super Admin can assign the Super Admin role.',
-
-            code:
-              'FORBIDDEN',
+            success: false,
+            message: 'Only a Super Admin can assign the Super Admin role.',
+            code: 'FORBIDDEN',
           });
-      }
+      } 
 
-      /*
-      |--------------------------------------------------------------------------
-      | Prevent changing own role
-      |--------------------------------------------------------------------------
-      */
-
-      if (
-        targetUser.id ===
-        request.user.id
-      ) {
+      if (targetUser.id ===request.user.id) {
         return response
           .status(422)
           .json({
-            success:
-              false,
-
-            message:
-              'You cannot change your own role.',
-
-            code:
-              'CANNOT_CHANGE_OWN_ROLE',
+            success: false,
+            message: 'You cannot change your own role.',
+            code: 'CANNOT_CHANGE_OWN_ROLE',
           });
       }
 
       const updatedUser =
         await prisma.user.update({
           where: {
-            id:
-              targetUser.id,
+            id: targetUser.id,
           },
 
           data: {
-            role:
-              parsed.data.role,
+            role: parsed.data.role,
           },
 
           select: {
-            id:
-              true,
-
-            organizationId:
-              true,
-
-            name:
-              true,
-
-            email:
-              true,
-
-            role:
-              true,
-
-            status:
-              true,
-
-            updatedAt:
-              true,
+            id: true,
+            organizationId: true,
+            name: true,
+            email: true,
+            role: true,
+            status: true,
+            updatedAt: true,
           },
         });
 
       return response
         .status(200)
         .json({
-          success:
-            true,
-
-          message:
-            'User role updated successfully.',
-
-          data:
-            updatedUser,
+          success: true,
+          message: 'User role updated successfully.',
+          data: updatedUser,
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'Change user role error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('Change user role error:',error,);
+      return next(error,);
     }
   },
 );

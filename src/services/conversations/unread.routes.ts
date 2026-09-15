@@ -13,39 +13,23 @@ import {
   unreadService,
 } from './unread.service';
 
-const router =
-  Router();
+const router = Router();
 
-router.get(
-  '/',
-
+router.get('/',
   authMiddleware,
-
   async (
-    request:
-      AuthRequest,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: AuthRequest,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      if (
-        !request.user
-      ) {
+      if (!request.user) {
         return response
           .status(401)
           .json({
-            success:
-              false,
-
-            message:
-              'Authentication is required.',
-
-            code:
-              'UNAUTHORIZED',
+            success: false,
+            message: 'Authentication is required.',
+            code: 'UNAUTHORIZED',
           });
       }
 
@@ -58,57 +42,31 @@ router.get(
       return response
         .status(200)
         .json({
-          success:
-            true,
-
-          data:
-            result,
+          success: true,
+          data: result,
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'Get unread counts error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('Get unread counts error:',error,);
+      return next(error,);
     }
   },
 );
 
-router.get(
-  '/:conversationId',
-
+router.get('/:conversationId',
   authMiddleware,
-
   async (
-    request:
-      AuthRequest,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: AuthRequest,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      if (
-        !request.user
-      ) {
+      if (!request.user) {
         return response
           .status(401)
           .json({
-            success:
-              false,
-
-            message:
-              'Authentication is required.',
-
-            code:
-              'UNAUTHORIZED',
+            success: false,
+            message: 'Authentication is required.',
+            code: 'UNAUTHORIZED',
           });
       }
 
@@ -116,67 +74,40 @@ router.get(
         await unreadService.getConversationUnreadCount(
           request.user.organizationId,
           request.user.id,
-          request.params.conversationId,
+          String(request.params.conversationId),
         );
 
       return response
         .status(200)
         .json({
-          success:
-            true,
-
+          success: true,
           data: {
-            conversationId:
-              request.params.conversationId,
-
+            conversationId: request.params.conversationId,
             unreadCount,
           },
         });
-    } catch (
-      error
-    ) {
-      console.error(
-        'Get conversation unread count error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+    } catch (error) {
+      console.error('Get conversation unread count error:',error,);
+      return next(error,);
     }
   },
 );
 
-router.post(
-  '/:conversationId/read',
-
+router.post('/:conversationId/read',
   authMiddleware,
-
   async (
-    request:
-      AuthRequest,
-
-    response:
-      Response,
-
-    next:
-      NextFunction,
+    request: AuthRequest,
+    response: Response,
+    next: NextFunction,
   ) => {
     try {
-      if (
-        !request.user
-      ) {
+      if (!request.user) {
         return response
           .status(401)
           .json({
-            success:
-              false,
-
-            message:
-              'Authentication is required.',
-
-            code:
-              'UNAUTHORIZED',
+            success: false,
+            message: 'Authentication is required.',
+            code: 'UNAUTHORIZED',
           });
       }
 
@@ -184,32 +115,21 @@ router.post(
         await unreadService.markConversationAsRead(
           request.user.organizationId,
           request.user.id,
-          request.params.conversationId,
+          String(request.params.conversationId),
         );
 
       return response
         .status(200)
         .json({
-          success:
-            true,
-
-          message:
-            'Conversation marked as read.',
-
-          data:
-            result,
+          success: true,
+          message: 'Conversation marked as read.',
+          data: result,
         });
     } catch (
       error
     ) {
-      console.error(
-        'Mark conversation as read error:',
-        error,
-      );
-
-      return next(
-        error,
-      );
+      console.error('Mark conversation as read error:',error,);
+      return next(error,);
     }
   },
 );
