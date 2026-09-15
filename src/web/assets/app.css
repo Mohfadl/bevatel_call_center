@@ -2104,62 +2104,29 @@ button {
 
 
 .contact-profile {
-    padding:
-        24px 15px;
-
-    text-align:
-        center;
-
-    border-bottom:
-        1px solid
-        var(--border);
+    padding: 24px 15px;
+    text-align: center;
+    border-bottom: 1px solid var(--border);
 }
-
 
 .details-avatar {
-    width:
-        62px;
-
-    height:
-        62px;
-
-    margin:
-        0 auto 10px;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    justify-content:
-        center;
-
-    border-radius:
-        50%;
-
-    background:
-        #dff2ff;
-
-    color:
-        #1261a0;
-
-    font-size:
-        18px;
-
-    font-weight:
-        600;
+    width: 62px;
+    height: 62px;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #dff2ff;
+    color: #1261a0;
+    font-size: 18px;
+    font-weight: 600;
 }
-
 
 .contact-profile h3 {
-    margin:
-        0;
-
-    font-size:
-        13px;
+    margin: 0;
+    font-size: 13px;
 }
-
 
 .details-status {
     display: inline-block;

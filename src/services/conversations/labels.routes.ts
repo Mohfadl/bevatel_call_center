@@ -9,37 +9,13 @@ import {
 
 const router = Router();
 
-/*
-|--------------------------------------------------------------------------
-| Validation
-|--------------------------------------------------------------------------
-*/
 
 const createLabelSchema = z.object({
-  name: z
-    .string()
-    .min(1, 'Label name is required')
-    .max(100),
-
-  color: z
-    .string()
-    .min(1)
-    .max(50)
-    .optional()
-    .nullable(),
+  name: z.string().min(1, 'Label name is required').max(100),
+  color: z.string().min(1).max(50).optional().nullable(),
 });
-
-/*
-|--------------------------------------------------------------------------
-| Health
-|--------------------------------------------------------------------------
-|
-| GET /api/labels/health
-|
-*/
-
-router.get(
-  '/health',
+ 
+router.get('/health',
   (_request, response) => {
     return response.json({
       success: true,
@@ -47,25 +23,10 @@ router.get(
     });
   },
 );
-
-/*
-|--------------------------------------------------------------------------
-| List Labels
-|--------------------------------------------------------------------------
-|
-| GET /api/labels
-|
-*/
-
-router.get(
-  '/',
-
+ 
+router.get('/',
   authMiddleware,
-
-  async (
-    request: AuthRequest,
-    response,
-  ) => {
+  async (request: AuthRequest, response, ) => {
     try {
       if (!request.user) {
         return response
@@ -79,8 +40,7 @@ router.get(
       const labels =
         await prisma.label.findMany({
           where: {
-            organizationId:
-              request.user.organizationId,
+            organizationId: request.user.organizationId,
           },
 
           orderBy: {
@@ -93,40 +53,20 @@ router.get(
         data: labels,
       });
     } catch (error) {
-      console.error(
-        'List labels error:',
-        error,
-      );
-
+      console.error('List labels error:',error,);
       return response
         .status(500)
         .json({
           success: false,
-          message:
-            'Internal server error',
+          message: 'Internal server error',
         });
     }
   },
 );
-
-/*
-|--------------------------------------------------------------------------
-| Create Label
-|--------------------------------------------------------------------------
-|
-| POST /api/labels
-|
-*/
-
-router.post(
-  '/',
-
+ 
+router.post('/',
   authMiddleware,
-
-  async (
-    request: AuthRequest,
-    response,
-  ) => {
+  async (request: AuthRequest,response,) => {
     try {
       if (!request.user) {
         return response
@@ -137,40 +77,22 @@ router.post(
           });
       }
 
-      const parsed =
-        createLabelSchema.safeParse(
-          request.body,
-        );
-
+      const parsed = createLabelSchema.safeParse(request.body,);
       if (!parsed.success) {
         return response
           .status(422)
           .json({
             success: false,
-            message:
-              'Validation failed',
-            errors:
-              parsed.error.flatten(),
+            message: 'Validation failed',
+            errors: parsed.error.flatten(),
           });
       }
 
-      const {
-        name,
-        color,
-      } = parsed.data;
-
-      /*
-      |--------------------------------------------------------------------------
-      | Prevent duplicate label name in same organization
-      |--------------------------------------------------------------------------
-      */
-
+      const {name, color, } = parsed.data;
       const existing =
         await prisma.label.findFirst({
           where: {
-            organizationId:
-              request.user.organizationId,
-
+            organizationId: request.user.organizationId,
             name,
           },
         });
@@ -180,27 +102,16 @@ router.post(
           .status(409)
           .json({
             success: false,
-            message:
-              'Label already exists',
+            message: 'Label already exists',
           });
       }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Create Label
-      |--------------------------------------------------------------------------
-      */
-
+ 
       const label =
         await prisma.label.create({
           data: {
-            organizationId:
-              request.user.organizationId,
-
+            organizationId: request.user.organizationId,
             name,
-
-            color:
-              color ?? null,
+            color: color ?? null,
           },
         });
 
@@ -208,45 +119,25 @@ router.post(
         .status(201)
         .json({
           success: true,
-          message:
-            'Label created successfully',
+          message: 'Label created successfully',
           data: label,
         });
     } catch (error) {
-      console.error(
-        'Create label error:',
-        error,
-      );
+      console.error('Create label error:',error,);
 
       return response
         .status(500)
         .json({
           success: false,
-          message:
-            'Internal server error',
+          message: 'Internal server error',
         });
     }
   },
 );
 
-/*
-|--------------------------------------------------------------------------
-| Delete Label
-|--------------------------------------------------------------------------
-|
-| DELETE /api/labels/:id
-|
-*/
-
-router.delete(
-  '/:id',
-
+router.delete('/:id',
   authMiddleware,
-
-  async (
-    request: AuthRequest,
-    response,
-  ) => {
+  async (request: AuthRequest,response,) => {
     try {
       if (!request.user) {
         return response
@@ -260,11 +151,8 @@ router.delete(
       const label =
         await prisma.label.findFirst({
           where: {
-            id:
-              request.params.id,
-
-            organizationId:
-              request.user.organizationId,
+            id: String(request.params.id),
+            organizationId: request.user.organizationId,
           },
         });
 
@@ -273,50 +161,35 @@ router.delete(
           .status(404)
           .json({
             success: false,
-            message:
-              'Label not found',
+            message: 'Label not found',
           });
       }
-
-      /*
-      |--------------------------------------------------------------------------
-      | Delete conversation-label relations first
-      |--------------------------------------------------------------------------
-      */
-
+ 
       await prisma.$transaction([
         prisma.conversationLabel.deleteMany({
           where: {
-            labelId:
-              label.id,
+            labelId: label.id,
           },
         }),
 
         prisma.label.delete({
           where: {
-            id:
-              label.id,
+            id: label.id,
           },
         }),
       ]);
 
       return response.json({
         success: true,
-        message:
-          'Label deleted successfully',
+        message: 'Label deleted successfully',
       });
     } catch (error) {
-      console.error(
-        'Delete label error:',
-        error,
-      );
-
+      console.error('Delete label error:',error,);
       return response
         .status(500)
         .json({
           success: false,
-          message:
-            'Internal server error',
+          message: 'Internal server error',
         });
     }
   },

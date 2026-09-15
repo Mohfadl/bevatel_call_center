@@ -482,7 +482,7 @@ router.patch('/users/:id/status',
       const user =
         await prisma.user.findFirst({
           where: {
-            id: request.params.id,
+            id: String(request.params.id),
             organizationId: request.user.organizationId,
           },
         });
